@@ -36,16 +36,17 @@ integer function X_dielectric_matrix(Xen,Xk,q,X,Xw,Dip,SILENT_MODE)
  use electrons,     ONLY:levels
  use parallel_m,    ONLY:PP_redux_wait,PAR_IND_Q,PAR_Q_index, PAR_nq, &
 &                        PAR_IND_Xk_ibz,PAR_IND_CON_BANDS_X,PAR_IND_VAL_BANDS_X,PAR_COM_X_WORLD,&
-&                        PAR_COM_X_WORLD_RL_resolved
+&                        PAR_COM_X_WORLD_RL_resolved,myid
  use wave_func,     ONLY:WF_buffered_IO,WF,WF_buffer
  use IO_m,          ONLY:io_control,OP_RD_CL,OP_APP_CL,VERIFY,REP,io_RESPONSE,OP_WR_CL
- use com,           ONLY:depth,error
+ use com,           ONLY:depth,error,msg
  use TDDFT,         ONLY:FXC
  use interfaces,    ONLY:PARALLEL_global_indexes,PARALLEL_WF_distribute,&
-&                        PARALLEL_WF_index,WF_load,WF_free
+& PARALLEL_WF_index,WF_load,WF_free,LINEAR_ALGEBRA_driver,MATRIX_transfer
  use QP_m,          ONLY:QP_n_W_freqs_redux
  use matrix,        ONLY:MATRIX_reset
  use timing_m,      ONLY:timing
+ use linear_algebra,ONLY:INV,SVD_INV,LIN_SYS,MAT_MUL
  !
 #include<memory.h>
  !
@@ -62,6 +63,8 @@ integer function X_dielectric_matrix(Xen,Xk,q,X,Xw,Dip,SILENT_MODE)
  real(SP)             :: minmax_ehe(2)
  integer, external    :: io_X,X_eh_setup
  character(1)         :: sec_mode
+ complex(SP), allocatable :: X_inv_test(:,:)
+ integer              :: i1,i2
  !
  ! logicals and control
  !
@@ -201,6 +204,8 @@ integer function X_dielectric_matrix(Xen,Xk,q,X,Xw,Dip,SILENT_MODE)
    !
  endif
  !
+! allocate(X_inv_test(X%ng,X%ng))
+ !
  do iq=X%iq(1),X%iq(2)
    !
    if (     io_X_done(iq) > 0       ) cycle
@@ -265,6 +270,21 @@ integer function X_dielectric_matrix(Xen,Xk,q,X,Xw,Dip,SILENT_MODE)
        !
      enddo
      !
+     !
+     !  print for dielectric matrix and the inverse to check the LFE in LiF --
+   !  Jiuyu Otc.3.2019
+     !
+     if(iq==1 )  then 
+
+       call msg('r','[POL_FUN] inv eps2[0,0]: ',1._SP+real(X_mat(1,1,1)))
+     !
+       allocate(X_inv_test(X%ng,X%ng))
+       X_inv_test(:,:)=X_mat(:,:,1)
+       forall(i1=1:X%ng) X_inv_test(i1,i1)=X_inv_test(i1,i1)+1._SP
+       call LINEAR_ALGEBRA_driver(INV,M=X_inv_test)
+       call msg('r','[POL_FUN] {1/eps2}_(0,0): ', 1._SP/real(X_inv_test(1,1)))
+       deallocate(X_inv_test)
+     endif
 #if defined _PAR_IO
    endif
 #endif

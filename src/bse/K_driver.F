@@ -35,9 +35,11 @@ subroutine K_driver(Xen,Ken,Xk,q,X_static_pp,Xw,Dip)
 &                         BSS_uses_DbGd,BSS_q0,BSS_eval_JDOS,BSS_eels_to_eps
  use BS,             ONLY:BS_bands,BS_q,BS_n_g_exch,BS_K_coupling,BS_res_K_corr,BS_res_K_exchange,&
 &                         BS_W_is_diagonal,BS_res_mode,BS_n_g_W,BS_K_is_ALDA,BS_cpl_mode,BS_cpl_K_corr,BS_cpl_K_exchange,&
-&                         BSE_mode,BS_Blocks_and_Transitions_free,l_BSE_minimize_memory,BSqpts,L_kind
+&                         BSE_mode,BS_Blocks_and_Transitions_free,l_BSE_minimize_memory,BSqpts,L_kind, &
+&     BS_K_is_HYB, BS_K_is_SXX, BS_K_is_MDL!, BS_K_eMread, BS_hybrd_frac
  use TDDFT,          ONLY:FXC_per_memstps,FXC_n_mem_freqs,FXC_is_retarded,FXC_n_g_corr
- use drivers,        ONLY:l_rpa_IP,l_alda_fxc,l_bs_fxc,l_bss,l_col_cut
+ use drivers,        ONLY:l_rpa_IP,l_alda_fxc,l_bs_fxc,l_bss,l_col_cut,&
+ &                  l_bsk_sxx,l_bsk_hybrd,l_bsk_model
  use parallel_m,     ONLY:PP_redux_wait,PAR_IND_WF_b_and_k
  use interfaces,     ONLY:PARALLEL_global_indexes,PARALLEL_WF_distribute,PARALLEL_WF_index,eval_G_minus_G
  use R_lattice,      ONLY:bz_samp,qindx_B,qindx_X
@@ -88,6 +90,9 @@ subroutine K_driver(Xen,Ken,Xk,q,X_static_pp,Xw,Dip)
  ! TDDFT setup and Resets
  !========================
  !
+ call msg('r','l_alda_fxc', l_alda_fxc)
+ call msg('r','BS_K_is_ALDA', BS_K_is_ALDA) 
+
  call X_reset(X_tddft)
  call W_reset(W_bss)
  !
@@ -110,7 +115,11 @@ subroutine K_driver(Xen,Ken,Xk,q,X_static_pp,Xw,Dip)
  BS_K_coupling=any((/BS_cpl_K_corr,BS_cpl_K_exchange/)) 
  BSS_add_antiresonant=index(BSE_mode,'retarded')/=0
  BS_W_is_diagonal=index(BS_res_mode,'d')/=0
- BS_K_is_ALDA=l_alda_fxc.and.n_spin==1
+ BS_W_is_diagonal=l_bsk_sxx.or.l_bsk_model.or.l_bsk_hybrd
+ BS_K_is_SXX=l_bsk_sxx
+ BS_K_is_MDL=l_bsk_model
+ BS_K_is_HYB=l_bsk_hybrd
+ BS_K_is_ALDA=l_alda_fxc.and.(n_spin==1).and.(.not.BS_K_is_HYB)
  if (n_spin>1.and.l_alda_fxc) call warning('TDDFT/ALDA not implemented for n_spin>1. Switched off')
 #if defined _KERR
  call parser('EvalKerr',l_kerr)

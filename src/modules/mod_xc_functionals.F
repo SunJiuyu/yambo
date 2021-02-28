@@ -42,8 +42,14 @@ module xc_functionals
  real(SP), public:: E_xc_val=0.0
  real(SP), public, allocatable:: magn(:,:)
  real(SP), public, allocatable:: F_xc(:,:,:)
+ real(SP), public, allocatable:: Fxc_x(:,:,:)
+ real(SP), public, allocatable:: Fxc_c(:,:,:)  
  real(SP), public, allocatable:: V_xc(:,:)
+ real(SP), public, allocatable:: Vxc_c(:,:)
+ real(SP), public, allocatable:: Vxc_x(:,:)
  real(SP), public, allocatable:: E_xc(:)
+ logical, Public    :: fxc_separate=.false.
+ logical, Public    :: Vxc_separate=.false.
  !
  ! Messagging
  !

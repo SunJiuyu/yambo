@@ -41,7 +41,8 @@ subroutine XC_libxc_driver(en,Xk,FUNCTIONAL,ORDER,EXX_FRACTION,EXX_SCREENING)
  use wrapper,        ONLY:V_dot_V
  use xc_functionals, ONLY:E_xc,E_xc_val,F_xc,magn,V_xc,xc_setup_hyb,&
 &                         XC_LDA_C_KP,xc_fnctl_t,xc_setup_fnctl,    &
-&                         xc_spin,xc_spin_map1, &
+&                         xc_spin,xc_spin_map1,&
+&             Vxc_separate, Vxc_x, Vxc_c, fxc_separate, Fxc_x, Fxc_c,&
 &                         XC_HYB_GGA_XC_GAUPBE,XC_FACTOR,XC_HYB_GGA_XC_PBEH
  use xc_f90_lib_m,   ONLY:XC_FAMILY_LDA,XC_FAMILY_GGA,XC_FAMILY_HYB_GGA
  use libxc_funcs_m,  ONLY:XC_GGA_X_PBE, XC_GGA_C_PBE
@@ -214,8 +215,20 @@ subroutine XC_libxc_driver(en,Xk,FUNCTIONAL,ORDER,EXX_FRACTION,EXX_SCREENING)
  !
  
  if (order==0) E_xc=0._SP
- if (order==1) V_xc=0._SP
- if (order==2) F_xc=0._SP
+ if (order==1) then
+  V_xc=0._SP
+  if(Vxc_separate) then
+    Vxc_x = 0._SP
+    Vxc_c = 0._SP
+  endif
+ endif
+ if (order==2) then
+    F_xc=0._SP
+   if(fxc_separate) then
+    Fxc_x=0._SP
+    Fxc_c=0._SP
+    endif
+ endif
  !
  !
  do ixc = 1,2
@@ -226,14 +239,32 @@ subroutine XC_libxc_driver(en,Xk,FUNCTIONAL,ORDER,EXX_FRACTION,EXX_SCREENING)
          call xc_f90_lda_exc(fnctl(ixc)%conf, fft_size, spin_rho_DP(1,1), tmp_exc(1))
          E_xc = E_xc + real(tmp_exc,SP)    
        case(1)
-         call xc_f90_lda_vxc(fnctl(ixc)%conf, fft_size, spin_rho_DP(1,1), tmp_vxc(1,1))
-         forall(i1=1:fft_size,i2=1:n_spin) V_xc(i1,i2) = V_xc(i1,i2) + real(tmp_vxc(i2,i1),SP)         
-       case(2) 
+         call xc_f90_lda_vxc(fnctl(ixc)%conf, fft_size, spin_rho_DP(1,1), tmp_vxc(1,1))   
+         forall(i1=1:fft_size,i2=1:n_spin) V_xc(i1,i2) = V_xc(i1,i2) + real(tmp_vxc(i2,i1),SP)
+           !  store Vxc x and c separately
+         if(Vxc_separate) then
+           if(ixc==1) then
+             forall(i1=1:fft_size,i2=1:n_spin) Vxc_x(i1,i2) = Vxc_x(i1,i2) + real(tmp_Vxc(i2,i1),SP)
+           else
+             forall(i1=1:fft_size,i2=1:n_spin) Vxc_c(i1,i2) = Vxc_c(i1,i2) + real(tmp_Vxc(i2,i1),SP)
+           endif
+         endif
+         !                  
+       case(2)
          call xc_f90_lda_fxc(fnctl(ixc)%conf, fft_size, spin_rho_DP(1,1), tmp_fxc(1,1))
          do is1 = 1,n_spin
            do is2 = 1,n_spin
              is_xc = xc_spin_map1(is1,is2)
              forall(i1=1:fft_size) F_xc(i1,is1,is2) = F_xc(i1,is1,is2) + real(tmp_fxc(is_xc,i1),SP)
+           !  store fxc x and c separately
+            if(fxc_separate) then
+              if(ixc==1) then
+                forall(i1=1:fft_size) Fxc_x(i1,is1,is2) = Fxc_x(i1,is1,is2) + real(tmp_fxc(is_xc,i1),SP)
+              else
+                forall(i1=1:fft_size) Fxc_c(i1,is1,is2) = Fxc_c(i1,is1,is2) + real(tmp_fxc(is_xc,i1),SP)
+              endif
+            endif
+            !
            enddo
          enddo
      end select

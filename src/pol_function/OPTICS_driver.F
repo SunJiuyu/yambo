@@ -30,7 +30,7 @@ subroutine OPTICS_driver(Xen,Xk,q,wv,X,Dip)
  use pars,          ONLY:pi,SP,cZERO
  use units,         ONLY:HA2EV
  use stderr,        ONLY:intc,set_real_printed_length
- use drivers,       ONLY:l_rpa_IP,l_bs_fxc,l_alda_fxc,l_pf_fxc,l_col_cut
+ use drivers,       ONLY:l_rpa_IP,l_bs_fxc,l_alda_fxc,l_dual_fxc,l_pf_fxc,l_col_cut
  use frequency,     ONLY:w_samp
  use electrons,     ONLY:levels,BZ_DbGd_tot_nk_levels
  use R_lattice,     ONLY:bz_samp,q_norm,bare_qpg
@@ -106,7 +106,7 @@ subroutine OPTICS_driver(Xen,Xk,q,wv,X,Dip)
    !
    ! ALDA (only once) 
    !
-   if (l_alda_fxc.and..not.allocated(FXC)) then
+   if ((l_alda_fxc.or.l_dual_fxc).and..not.allocated(FXC)) then
      !
      call TDDFT_ALDA_G_space(Xen,Xk)
      !
@@ -236,7 +236,10 @@ subroutine OPTICS_driver(Xen,Xk,q,wv,X,Dip)
      !
 !     if (Macroscopic_CPU) Epsilon_ii(:,2)=1._SP/(X_par(1)%blc(i_G_shift,i_G_shift,:)*&
 !&                                                bare_qpg(iq,i_G_shift)**2/Q_plus_G_sq_modulus+1._SP)
-     if (Macroscopic_CPU) Epsilon_ii(:,2)=1._SP/(X_par(1)%blc(i_G_shift,i_G_shift,:)+1._SP)
+     if (Macroscopic_CPU) then
+       Epsilon_ii(:,2)=1._SP/(X_par(1)%blc(i_G_shift,i_G_shift,:)+1._SP)
+       if(iq==1)  call msg('r','[POL_FUN] Macroscopic epsilon2',real(Epsilon_ii(1,2)))
+     endif
      !
    endif
    !

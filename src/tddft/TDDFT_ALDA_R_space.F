@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-function TDDFT_ALDA_R_space(is,os,isp,osp,mode)
+function TDDFT_ALDA_R_space(is,os,isp,osp,mode,ixc)
  !
  ! Calculates the F_xc scattering 
  !
@@ -39,18 +39,20 @@ function TDDFT_ALDA_R_space(is,os,isp,osp,mode)
  !
  use pars,           ONLY:SP,pi,cZERO
  use FFT_m,          ONLY:fft_size
- use xc_functionals, ONLY:F_xc
+ use xc_functionals, ONLY:F_xc,Fxc_x,Fxc_c,fxc_separate
  use wrapper_omp,    ONLY:V_dot_V_omp
  use electrons,      ONLY:n_spinor,n_sp_pol,n_spin
  use com,            ONLY:error
  use timing_m,       ONLY:timing
  use interfaces,     ONLY:WF_apply_symm
+ use BS,             ONLY:BS_hybrd_frac
  !
  implicit none
  !
  integer     :: is(4),os(4),isp(4),osp(4)
  character(3):: mode
  complex(SP) :: TDDFT_ALDA_R_space
+ integer, optional :: ixc
  ! 
  ! Work Space
  !
@@ -66,6 +68,8 @@ function TDDFT_ALDA_R_space(is,os,isp,osp,mode)
  !
  TDDFT_ALDA_R_space=cZERO
  !
+ if(.not.present(ixc))  ixc=4  ! xc together
+ !
  call WF_apply_symm(is,WF_symm1) 
  call WF_apply_symm(os,WF_symm2)
  !
@@ -79,7 +83,18 @@ function TDDFT_ALDA_R_space(is,os,isp,osp,mode)
    call WF_apply_symm(osp,WF_symm1)
  endif
  !
- if( n_spin==1 ) rhotwr2(:,1)=F_xc(:,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+ if( n_spin==1 ) then
+   select case(ixc) 
+   case (1)
+     rhotwr2(:,1)=Fxc_x(:,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+   case (2)
+     rhotwr2(:,1)=Fxc_c(:,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+   case (4)
+     rhotwr2(:,1)=F_xc(: ,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+   case (3)
+     rhotwr2(:,1)=((1._SP-BS_hybrd_frac)*Fxc_x(:,1,1)+Fxc_c(:,1,1))*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+  end select
+ endif
  !
  if(n_sp_pol==2) rhotwr2(:,1)=F_xc(:,is(4),isp(4))*WF_symm1(:,1)*conjg(WF_symm2(:,1))
  !

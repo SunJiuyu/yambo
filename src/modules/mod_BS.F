@@ -38,6 +38,13 @@ module BS
  logical :: BS_cpl_K_exchange
  logical :: BS_cpl_K_corr
  logical :: BS_K_is_ALDA
+ logical :: BS_ALDA_is_G=.false.
+ logical :: BS_K_is_HYB
+ logical :: BS_K_is_SXX
+ logical :: BS_K_is_MDL 
+ real(SP) :: BS_K_eMread
+ real(SP) :: BS_hybrd_frac
+ integer :: BS_hybrd_type
  logical :: BS_not_const_eh_f
  logical :: BS_K_has_been_calculated_loaded=.FALSE.
  character(schlen) :: L_kind

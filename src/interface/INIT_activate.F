@@ -29,9 +29,10 @@ subroutine INIT_activate()
  use stderr,         ONLY:intc
  use drivers,        ONLY:l_em1s,l_acfdt,l_HF_and_locXC,l_col_cut,l_alda_fxc,l_bs_fxc,l_optics,l_bse,l_bss,&
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hf,l_setup,l_sc_run,l_rim,&
-&                         l_real_time,l_ppa,l_lrc_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh,&
+&                         l_real_time,l_ppa,l_lrc_fxc,l_dual_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
-&                         l_sc_magnetic,l_dipoles,l_pf_fxc,l_nl_optics
+&                         l_sc_magnetic,l_dipoles,l_pf_fxc,l_nl_optics, &
+&                         l_bsk_sxx, l_bsk_hybrd, l_bsk_model
 #if defined _SC || defined _RT
  use hamiltonian,    ONLY:H_potential
 #endif
@@ -141,7 +142,13 @@ subroutine INIT_activate()
  !
  if (l_em1s.or.l_em1d)             call initactivate(1,'Chimod ChiLinAlgMod')
  if (l_optics.and.l_chi)           call initactivate(1,'Chimod ChiLinAlgMod')
- if (l_optics.and.l_bse)           call initactivate(1,'BSEmod')
+ if (l_optics.and.l_bse)    then
+        call initactivate(1,'BSKmod')
+        if(l_bsk_sxx) call initactivate(1,'eM00') !use type to differ from the big kernel mod 
+        if(l_bsk_model) call initactivate(1,'eM00')
+        if(l_bsk_hybrd) call initactivate(1,'Hybrid_frac Hybrid_type')
+        
+ endif
  if (l_optics.and.l_bse)           call initactivate(1,'BSKmod Lkind')
  if (l_optics.and.l_bse.and.l_bss) call initactivate(1,'BSSmod')
  !
@@ -154,8 +161,9 @@ subroutine INIT_activate()
    !
    !
    ! ALDA/LRC Tddft
-   if (l_alda_fxc) call initactivate(1,'FxcGRLc')
+   if (l_alda_fxc.and.(.not.l_bsk_hybrd)) call initactivate(1,'FxcGRLc')
    if (l_lrc_fxc)  call initactivate(1,'LRC_alpha LRC_beta')
+   if(l_dual_fxc)  call initactivate(1,'LRC_alpha LRC_beta FxcGRLc')
    if (l_pf_fxc)   call initactivate(1,'PF_alpha')
    !
  endif
@@ -360,8 +368,8 @@ subroutine INIT_activate()
    !
  endif
  !
- if(l_alda_fxc.and.any((/l_em1s,l_em1d,l_acfdt,l_ppa,l_cohsex,l_gw0/)) ) call initactivate(1,'FxcGRLc')
- if( l_lrc_fxc.and.any((/l_em1s,l_em1d,l_acfdt,l_ppa,l_cohsex,l_gw0/)) ) call initactivate(1,'LRC_alpha LRC_beta')
+ if((l_alda_fxc.or.l_dual_fxc).and.any((/l_em1s,l_em1d,l_acfdt,l_ppa,l_cohsex,l_gw0/)) ) call initactivate(1,'FxcGRLc')
+ if( (l_lrc_fxc.or.l_dual_fxc).and.any((/l_em1s,l_em1d,l_acfdt,l_ppa,l_cohsex,l_gw0/)) ) call initactivate(1,'LRC_alpha LRC_beta')
  !
  ! El-Ph: Frohlich Hamiltonian
  !

@@ -47,7 +47,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
 &                        bz_samp,RIM_ng,RIM_epsm1,RIM_id_epsm1_reference,&
 &                        RIM_n_rand_pts,cyl_ph_radius,box_length,cyl_length,cut_geometry,ws_cutoff
  use BS,            ONLY:BSE_mode,BSK_mode,BS_eh_en,BS_eh_win,BS_q,BS_bands,&
-&                        BS_n_g_W,BS_n_g_exch,L_kind
+&                        BS_n_g_W,BS_n_g_exch,L_kind,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
  use BS_solvers,    ONLY:BSS_mode,Haydock_threshold,Haydock_iterIO,BSS_n_freqs,&
 &                        BSS_dr,BSS_er,BSS_q0,BSS_damp_reference,BSS_inversion_mode,&
 &                        BSS_Wd,K_INV_EPS,K_INV_PL,BSS_n_eig
@@ -241,7 +241,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  !
  ! Xs Xd Xp
  !
- call it(defs,'Chimod',       '[X] IP/Hartree/ALDA/LRC/PF/BSfxc',Chi_mode,protect=.FALSE.,case="A")
+ call it(defs,'Chimod',       '[X] IP/Hartree/ALDA/LRC/Dual/PF/BSfxc',Chi_mode,protect=.FALSE.,case="A")
  call it(defs,'ChiLinAlgMod', '[X] inversion/lin_sys',Chi_linalg_mode,verb_level=V_resp,case="A")
  call Xload(X(2),Xw(2))
  call Xload(X(3),Xw(3))
@@ -259,9 +259,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it(defs,'BSENGexx','[BSK] Exchange components',BS_n_g_exch,G_unit)
  call it(defs,'BSEEhEny','[BSK] Electron-hole energy range',BS_eh_en,E_unit,verb_level=V_resp)
  !
- 
- call it(defs,'BSKmod',  '[BSE] IP/Hartree/HF/ALDA/SEX',BSK_mode,protect=.FALSE.)
- 
+ call it(defs,'BSKmod',  '[BSE] IP/Hartree/HF/ALDA/SEX/SXX/Hybrid/model',BSK_mode,protect=.FALSE.) 
  !
  !
  call it(defs,'Gauge' ,  '[BSE] Gauge (length|velocity)',global_gauge,verb_level=V_resp)
@@ -281,6 +279,9 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it(defs,'BEnSteps',  '[BSS] Energy steps',BSS_n_freqs)
  call it(defs,'DrudeWBS',  '[BSE] Drude plasmon',BSS_Wd,E_unit,verb_level=V_resp)
  call it('f',defs,'WehDiag', '[BSK] diagonal (G-space) the eh interaction',verb_level=V_resp)
+ call it(defs,'eM00', '[BSK] Read manual eM_00',BS_K_eMread)
+ call it(defs,'Hybrid_frac', '[BSK] Read manual fraction for exact exchange, default: 1/epsilon',BS_hybrd_frac) 
+ call it(defs,'Hybrid_type', '[BSK] In Hybrid, 1: xc screened together, 2: only exchange screened',BS_hybrd_type) 
  call it('f',defs,'WehCpl',  '[BSK] eh interaction included also in coupling')
  call it('f',defs,'WRbsWF',  '[BSS] Write to disk excitonic the WFs',verb_level=V_resp)
 #if defined _SLEPC

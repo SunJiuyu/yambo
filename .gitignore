@@ -11,6 +11,7 @@
 *.f90
 *.s
 *.sw*
+configure.sh
 config.status
 config/report
 config/setup
@@ -27,11 +28,14 @@ include/system/
 #
 lib/archive/keep-extlibs-stamp
 lib/install/make_iotk.inc
+lib/iotk/make_iotk.inc
+lib/external
 lib/iotk/make.sys
 lib/*/*stamp
 lib/*/lib
 lib/*/bin
 lib/*/tmp
+lib/*/package-installed
 lib/*/etsf_io*
 lib/*/netcdf-*
 lib/*/iotk*

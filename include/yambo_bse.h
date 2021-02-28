@@ -90,7 +90,7 @@ integer ::     i_k_s,i_k_s_m1,i_p_s,i_k_bz,i_p_bz,i_k,i_p,i_kp_s,& NEWLINE \
        iq_W_s_mq =q%sstar( iq_W_bz_mq,2) NEWLINE \
      endif NEWLINE \
      NEWLINE \
-     if (BS_K_is_ALDA) then NEWLINE \
+     if (BS_K_is_ALDA.or.BS_K_is_HYB) then NEWLINE \
        is_k = (/i_c_k,i_k,i_k_s,i_k_sp_pol/) NEWLINE \
        os_k = (/i_v_k,i_kmq,i_kmq_s,i_k_sp_pol/) NEWLINE \
        is_p = (/i_c_p,i_p,i_p_s,i_p_sp_pol/) NEWLINE \

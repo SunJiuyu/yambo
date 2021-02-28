@@ -31,9 +31,10 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
  !
  use drivers,        ONLY:infile_editing,l_em1s,l_acfdt,l_HF_and_locXC,l_col_cut,l_alda_fxc,l_bs_fxc,l_optics,l_bse,l_bss,&
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hartree,l_tddft,list_dbs,l_td_hf,l_setup,l_sc_run,l_rim,&
-&                         l_real_time,l_ppa,l_lrc_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh_diag,l_W_eh_cpl,l_W_eh,&
+&                         l_real_time,l_ppa,l_lrc_fxc,l_dual_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh_diag,l_W_eh_cpl,l_W_eh,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
-&                         l_sc_magnetic,l_dipoles,l_pf_fxc,l_nl_optics
+&                         l_sc_magnetic,l_dipoles,l_pf_fxc,l_nl_optics, &
+&                         l_bsk_sxx, l_bsk_hybrd, l_bsk_model
 #if defined _SCALAPACK
  use drivers,        ONLY:l_slk_test
 #endif
@@ -368,13 +369,18 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
      !
      l_rpa_IP     = STRING_match(trim(Chi_mode),"IP").or.STRING_match(trim(BSK_mode),"IP")
      l_td_hartree = STRING_match(trim(Chi_mode),"HARTREE").or.STRING_match(trim(BSK_mode),"HARTREE")
-     l_alda_fxc   = STRING_match(trim(Chi_mode),"ALDA").or.STRING_match(trim(BSK_mode),"ALDA")
+     l_alda_fxc   = STRING_match(trim(Chi_mode),"ALDA").or.STRING_match(trim(BSK_mode),"ALDA").or.STRING_match(trim(BSK_mode),"Hybrid")     
      l_lrc_fxc    = STRING_match(trim(Chi_mode),"LRC")
+     l_dual_fxc   = STRING_match(trim(Chi_mode),"Dual")
      l_pf_fxc     = STRING_match(Chi_mode,'PF')      
      l_bs_fxc     = STRING_match(trim(Chi_mode),"BSFXC").or.STRING_match(trim(BSK_mode),"BSFXC")
-     l_tddft      = l_alda_fxc.or.l_lrc_fxc.or.l_bs_fxc
+     l_tddft      = l_alda_fxc.or.l_lrc_fxc.or.l_bs_fxc.or.l_dual_fxc.or.l_bsk_hybrd
      l_td_hf      = trim(BSK_mode)=="HF"
-     l_W_eh       = trim(BSK_mode)=="SEX"
+     l_W_eh       = trim(BSK_mode)=="SEX".or.trim(BSK_mode)=="SXX" &
+&     .or.trim(BSK_mode)=='Hybrid'.or.trim(BSK_mode)=="model"
+     l_bsk_sxx    = trim(BSK_mode)=="SXX"
+     l_bsk_hybrd  = trim(BSK_mode)=="Hybrid"
+     l_bsk_model  = trim(BSK_mode)=="model"
      !
    end subroutine logicalson
    !
@@ -425,7 +431,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
      !
      if (l_bse) then
        !
-       if (l_alda_fxc) BS_res_mode='x'     
+       if (l_alda_fxc.and.(.not.l_bsk_hybrd)) BS_res_mode='x'     
        !
        if (io_X_err(2)==0) then
          if (io_BS_err/=0) BS_n_g_W=X(2)%ng
@@ -477,10 +483,13 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
      if (l_bse) then
        if (l_rpa_IP)                   BS_res_mode='none'
        if (l_td_hartree)               BS_res_mode='x'
-       if (l_tddft)                    BS_res_mode='x'
+       if (l_tddft.and.(.not.l_bsk_hybrd))   BS_res_mode='x'
        if (l_bs_fxc)                   BS_res_mode='c'
        if (l_td_hf)                    BS_res_mode='xcd'
        if (l_W_eh)                     BS_res_mode='xc'
+       if (l_bsk_sxx)                  BS_res_mode='xc'
+       if (l_bsk_hybrd)                BS_res_mode='xc'
+       if (l_bsk_model)                BS_res_mode='xc'
        if (index(BSE_mode,'coupling')>0) BS_cpl_mode=trim(BS_res_mode)
        !
        if(l_W_eh) then

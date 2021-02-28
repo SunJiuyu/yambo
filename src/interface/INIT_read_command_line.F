@@ -25,7 +25,8 @@ subroutine INIT_read_command_line(rstr,init_)
  !
  use pars,           ONLY:schlen
  use drivers,        ONLY:infile_editing,l_bse,l_alda_fxc,l_chi,l_elel_corr,&
-&                         l_elel_scatt,l_elph_corr,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt
+&                         l_elel_scatt,l_elph_corr,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt, &
+&                          l_bsk_sxx, l_bsk_hybrd, l_bsk_model
  use BS,             ONLY:BSK_mode
  use BS_solvers,     ONLY:BSS_mode
  use X_m,            ONLY:Chi_mode
@@ -183,9 +184,11 @@ subroutine INIT_read_command_line(rstr,init_)
        !
        if (.not.l_bse.and..not.l_chi) then
          l_chi =((trim(rstr_piece(i1+1)) == 'hartree').or.&
-                &( trim(rstr_piece(i1+1)) == 'lrc'))
+                &( trim(rstr_piece(i1+1)) == 'lrc').or. &
+                &( trim(rstr_piece(i1+1)) == 'dual'))
          l_bse =((trim(rstr_piece(i1+1)) == 'alda').or.&
                 &(trim(rstr_piece(i1+1)) == 'sex').or.&
+                &(trim(rstr_piece(i1+1)) == 'model').or.&
                 &(trim(rstr_piece(i1+1)) == 'hf').or.&
                 &( trim(rstr_piece(i1+1)) == 'bsfxc'))
          infile_editing=.true.           
@@ -202,16 +205,21 @@ subroutine INIT_read_command_line(rstr,init_)
          if(trim(rstr_piece(i1+1))  == 'hf')       BSK_mode='HF'
          if( trim(rstr_piece(i1+1)) == 'alda')     BSK_mode='ALDA'
          if(trim(rstr_piece(i1+1))  == 'sex')      BSK_mode='SEX'
+         if(trim(rstr_piece(i1+1))  == 'sxx')      BSK_mode='SXX'  ! Jiuyu sxx
+         if(trim(rstr_piece(i1+1))  == 'hybrid')   BSK_mode='Hybrid'
+         if(trim(rstr_piece(i1+1))  == 'model')    BSK_mode='model'
          if( trim(rstr_piece(i1+1)) == 'bsfxc')    BSK_mode='BSfxc'
        else if(l_chi) then
          if(trim(rstr_piece(i1+1))  == 'hartree')  Chi_mode='HARTREE'
          if( trim(rstr_piece(i1+1)) == 'alda')     Chi_mode='ALDA'
          if( trim(rstr_piece(i1+1)) == 'lrc')      Chi_mode='LRC'
+         if( trim(rstr_piece(i1+1)) == 'dual')      Chi_mode='Dual'
          if( trim(rstr_piece(i1+1)) == 'bsfxc')    Chi_mode='BSfxc'
        endif
        !
        if((trim(rstr_piece(i1+1)) == 'alda').or.&
 &             (trim(rstr_piece(i1+1)) == 'lrc').or.&
+&             (trim(rstr_piece(i1+1)) == 'dual').or.&
 &             (trim(rstr_piece(i1+1)) == 'pf').or.&
 &             (trim(rstr_piece(i1+1)) == 'bsfxc')) call initactivate(1,'tddft')
        !

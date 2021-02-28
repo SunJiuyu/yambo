@@ -21,24 +21,21 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine K_screened_interaction(X,Xw,q,io_X_err)
+subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
  !
- use pars,         ONLY:SP,pi,cZERO,cI
+ use pars,         ONLY:SP
  use stderr,       ONLY:intc
- use units,        ONLY:HBAR_eVfs,BO2ANG,HBAR_SI
  use frequency,    ONLY:w_samp
  use drivers,      ONLY:l_td_hf
  use com,          ONLY:warning,msg
  use collision_el, ONLY:elemental_collision,elemental_collision_free
  use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg
- use D_lattice,    ONLY:i_time_rev,i_space_inv,DL_vol
- use electrons,    ONLY:levels,spin_occ,spin,n_spin,nel
+ use D_lattice,    ONLY:i_time_rev,i_space_inv
  use X_m,          ONLY:X_alloc,X_t,X_mat
 #ifdef _CUDA
  use X_m,          ONLY:X_mat_d
 #endif
- use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W,   &
-& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+ use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,RD,RD_CL,RD_CL_IF_END
  use deviceXlib_m, ONLY:dev_memcpy
  !
@@ -60,20 +57,11 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  !
  integer    :: BS_W_size2,i_g2,i_g3,iq_W
  logical    :: W_is_em1s,W_is_pp
-
  !
  ! I/O
  !
  integer           :: XID
  integer, external :: io_X
-
- logical              ::  BS_eM_is_manual=.false.
- real(SP),allocatable  :: model_epsilon(:,:)
- real(SP)             :: ele_density,q_ThmsFrm2,m2wp2,BS_K_eM
-
- ele_density = nel/DL_vol/(BO2ANG**3)  ! density of electron, unit: A^{-3}
- q_ThmsFrm2 = 4.0*(3.0*ele_density/pi)**(1.0/3.0)/BO2ANG  !Thomas-Fermi vector: q_tf^2 = 
- m2wp2 = ele_density*9.10938/8.854*1.602176462**2  ! free electron plasma freqency: wp^2 = density*e^2/e0/m_e
  ! 
  if (l_td_hf) then
    !
@@ -87,80 +75,11 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    ! X%ng are the G's in the X DB while BS_n_g_W the G's I want to read.
    ! Now to read only BS_n_g_W components I need to redefine X%ng
    !
-
-   if(BS_K_is_SXX) then
-    call msg('r','SXX kernel')
-!    allocate(inv_epsilon(1,1))
-    if(BS_K_eMread.gt.0.99) then
-      BS_eM_is_manual = .true.
-      BS_K_eM = BS_K_eMread
-      call msg('r','We use manual epsilon: ', BS_K_eMread)
-    else
-      BS_K_eMread = 0.0
-      BS_K_eM = 0.0
-      call msg('r','We use RPA epsilon: ', BS_K_eMread) 
-    endif
-   endif
-
-   if(BS_K_is_MDL) then
-    call msg('r','Model dielectric function kernel')
-      allocate(model_epsilon(BS_n_g_W,1))
-    if(BS_K_eMread.gt.0.99) then
-      BS_eM_is_manual = .true.
-      BS_K_eM   = BS_K_eMread
-      call msg('r','We use manual epsilon: ', BS_K_eMread)
-    else
-      BS_K_eMread = 0.0
-      BS_K_eM = 0.0
-      call msg('r','We use RPA epsilon: ', BS_K_eMread) 
-    endif      
-   endif
-
-   if(BS_K_is_HYB) then
-!     allocate(inv_epsilon(1,1))
-     if(BS_hybrd_frac.gt.1E-4) then
-      BS_eM_is_manual = .true.
-!      inv_epsilon(1,1) = BS_hybrd_frac
-      BS_K_eM = 1._SP/BS_hybrd_frac
-      BS_K_eMread = BS_K_eM
-      call msg('r','We use manual epsilon: ', BS_K_eM)
-     elseif(BS_hybrd_frac.lt.-0.1) then
-      BS_K_eMread = 0.0
-      BS_K_eM = 0.0
-      call msg('r','We use RPA epsilon: ', BS_K_eM) 
-     endif
-
-     select case(BS_hybrd_type)
-    case(1)
- !   if(BS_n_g_W)
-      call msg('r','We are doing SXX + (1-a)*ALDA ',BS_hybrd_type)
-    case(2)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c ',BS_hybrd_type)
-    case(3)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together ',BS_hybrd_type)
-!    call msg('r','We are doing SXX, empirical epsilon ',BS_SXX_type)
-    end select
-
-   endif
-
-
-
-   if(BS_K_eMread .lt. 1.0) then
-
-     if(BS_K_eMread.gt.1E-4) then
-       io_X_err=-1
-         call msg('r','Wrong number of eMread: should > 1.0 or =0.0: ', BS_K_eMread)
-         return
-     else  
-     X%ng=BS_n_g_W
-     call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=XID)
-     io_X_err=io_X(X,Xw,XID) 
-     !
-     call msg('r', 'io_X_err: ', io_X_err)
-     if(io_X_err<0) return
-
-     endif
-   endif
+   X%ng=BS_n_g_W
+   call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=XID)
+   io_X_err=io_X(X,Xw,XID) 
+   !
+   if(io_X_err<0) return
    !
    ! X%ng is set to BS_n_g_W to VERIFY if there are enough bands.
    ! From now on it is used to keep track of the actual sixe of W in the DB
@@ -172,7 +91,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  call elemental_collision_free(isc)
  !
  X%ng=BS_n_g_W
- if ((.not.l_td_hf).and.(BS_K_eMread.lt.1E-4)) then
+ if (.not.l_td_hf) then
    !
    ! PP/Epsm1S DBs
    !
@@ -201,7 +120,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    YAMBO_ALLOC(isc%gamp_d,(BS_n_g_W,BS_W_size2))
 #endif
  !
- if ((.not.l_td_hf).and.(BS_K_eMread.lt.1E-4)) then
+ if (.not.l_td_hf) then
    call io_control(ACTION=OP_RD,COM=NONE,SEC=(/1/),ID=XID)
    io_X_err=io_X(X,Xw,XID)
    if (io_X_err<0) then
@@ -210,15 +129,12 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    endif
  endif
  !
- 
  do iq_W=1,q%nibz
    !
    isc%qs(2)=iq_W
    call DEV_SUBNAME(scatter_Gamp)(isc,'c')
    !
    if (.not.l_td_hf) then
-     !
-    if(.not.BS_eM_is_manual) then
      !
      call io_control(ACTION=RD_CL_IF_END,COM=NONE,SEC=(/2*iq_W,2*iq_W+1/),ID=XID)
      io_X_err=io_X(X,Xw,XID)
@@ -227,12 +143,12 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
        return
      endif
      !
-     !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
-     if(iq_W.eq.1) then
-      BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
-      if(BS_K_is_HYB)  BS_hybrd_frac = 1._SP/BS_K_eM
-     endif
-    endif
+     forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+        if(iq_W.eq.1) call msg('r',"inv epsilon0", real(X_mat(1,1,1)))
+       do i_g2=1,BS_n_g_W
+         call msg('r',"1overQ2 ", real(bare_qpg(iq_W,i_g2)))
+         call msg('r',"inv_eps ", real(X_mat(i_g2,i_g2,1)))
+       enddo
      !
 #ifdef _CUDA
      ! device <- host transfer
@@ -258,19 +174,8 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      endif
 #else
      if (BS_W_is_diagonal) then
-      if(BS_K_is_SXX.or.BS_K_is_HYB) then
-       forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
-      elseif(BS_K_is_MDL) then
-       do i_g2=1,BS_n_g_W
-        model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
-&   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
-&   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
-        BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
-       enddo
-      endif
+       forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=real(X_mat(i_g2,i_g2,1),SP)*isc%gamp(i_g2,1)
      else if (.not.BS_W_is_diagonal) then
-       call warning("off-diagonal W is not supported currently!!")
-       return
        do i_g3=1,BS_n_g_W
          do i_g2=1,BS_n_g_W
            BS_W(i_g2,i_g3,iq_W)=X_mat(i_g2,i_g3,1)*isc%gamp(i_g2,i_g3)

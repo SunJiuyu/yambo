@@ -32,7 +32,7 @@ subroutine XCo_local(E,Xk)
  use R_lattice,     ONLY:bz_samp
  use FFT_m,         ONLY:fft_size
  use wave_func,     ONLY:WF
- use xc_functionals,ONLY:E_xc,V_xc,xc_string,XC_potential_driver,magn,XC_potential_driver
+ use xc_functionals,ONLY:E_xc,V_xc,xc_string,XC_potential_driver,magn,XC_potential_driver,Vxc_separate ,Vxc_x, Vxc_c ! Jiuyu separately count x and c
  use global_XC,     ONLY:WF_kind,WF_xc_functional,WF_exx_fraction,WF_exx_screening
  use wrapper_omp,   ONLY:Vstar_dot_V_omp
  use parallel_m,    ONLY:PP_redux_wait,PAR_IND_WF_linear 
@@ -61,6 +61,7 @@ subroutine XCo_local(E,Xk)
  integer     ::i1,ifft,iwf,iwfp,ib,ibp,ik,i_sp_pol
  real(SP)    ::E_xc_
  complex(SP) ::c_ws(fft_size,n_spinor)
+ complex(SP),allocatable ::  xcx_ws(:,:),xcc_ws(:,:)
  !
  ! Spin support (collinear and not collinear)
  !
@@ -70,6 +71,13 @@ subroutine XCo_local(E,Xk)
  !
  ! Allocation 
  !
+ Vxc_separate = .false.
+   if(Vxc_separate) then
+   allocate(Vxc_x(fft_size,n_spin))
+   allocate(Vxc_c(fft_size,n_spin))
+!   allocate(xcx_ws(fft_size,n_spinor))
+   allocate(xcc_ws(fft_size,n_spinor))
+   endif 
  if (.not.allocated(V_xc)) then
    YAMBO_ALLOC(V_xc,(fft_size,n_spin))
  endif
@@ -135,6 +143,11 @@ subroutine XCo_local(E,Xk)
 !$omp parallel do default(shared), private(ifft)
      do ifft=1,fft_size
        c_ws(ifft,1)=V_xc(ifft,1)*WF%c(ifft,1,iwfp)
+       if(Vxc_separate) then
+!        V_xc(ifft,1) = Vxc_x(ifft,1) + Vxc_c(ifft,1)
+ !        xcx_ws(ifft,1)=Vxc_x(ifft,1)*WF%c(ifft,1,iwfp)
+         xcc_ws(ifft,1)=Vxc_c(ifft,1)*WF%c(ifft,1,iwfp)
+       endif
      enddo
 !$omp end parallel do
      !

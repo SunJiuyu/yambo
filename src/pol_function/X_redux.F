@@ -36,7 +36,7 @@ subroutine X_redux(iq,X_par,Xw,X)
  !
  use pars,          ONLY:SP,pi,cZERO,cONE
  use com,           ONLY:error
- use drivers,       ONLY:l_bs_fxc,l_alda_fxc,l_lrc_fxc
+ use drivers,       ONLY:l_bs_fxc,l_alda_fxc,l_lrc_fxc,l_dual_fxc
  use LIVE_t,        ONLY:live_timing
  use parallel_m,    ONLY:PP_redux_wait,PP_indexes,PP_indexes_reset,PAR_COM_X_WORLD_RL_resolved,PP_bcast,&
 &                        PAR_COM_X_WORLD,PAR_COM_SLK_INDEX_local,PAR_COM_SLK,PAR_n_freqs,PAR_FREQS_index
@@ -182,6 +182,30 @@ subroutine X_redux(iq,X_par,Xw,X)
        enddo
        !$omp end parallel do
      endif
+
+     ! Jiuyu's playing dual Fxc: alpha/q^2 + beta*ALDA
+   else if (l_dual_fxc) then   
+
+     ! ALDA Fxc part
+     !
+     if (Xo%kind=="SLK") then
+#if defined _SCALAPACK
+       call PARALLEL_M_by_M(Xo,K_FXC,KERNEL,"N","N",X%ng,FXC_n_g_corr,FXC_n_g_corr)
+#else
+       call error("[LA] SLK library required but not available")
+#endif
+     else
+       call M_by_M('N','N',X%ng,FXC_n_g_corr,FXC_n_g_corr,cmplx(FXC_LRC_beta,0),-Xo%blc(:,:FXC_n_g_corr,1),X%ng,&
+&                  FXC(:,:,1),FXC_n_g_corr,cZERO,KERNEL%blc(:,:FXC_n_g_corr,1),X%ng)
+     endif
+
+     if (Xo%cols(1)==1) then
+       !$omp parallel do default(shared), private(ig1)
+       do ig1=Xo%rows(1),Xo%rows(2)
+         KERNEL%blc(ig1,1,1)=-Xo%blc(ig1,1,1)*(FXC_LRC_alpha)/bare_qpg(iq,1)**2 + KERNEL%blc(ig1,1,1)
+       enddo
+       !$omp end parallel do
+     endif  
      !
    else if (l_alda_fxc) then
      !

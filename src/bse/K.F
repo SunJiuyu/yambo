@@ -43,18 +43,19 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  use BS_solvers,   ONLY:BSS_q0
  use BS,           ONLY:BS_bands,BS_res_K_corr,BS_W,BS_W_is_diagonal,&
 &                       BS_res_K_exchange,BS_Block_size,&
-&                       O_ng,BS_n_g_exch,BS_identifier,BS_LiveTiming_steps,&
+&                       O_ng,BS_n_g_W,BS_n_g_exch,BS_identifier,BS_LiveTiming_steps,&
 &                       BS_K_dim,BS_K_is_ALDA,BS_cpl_K_exchange,&
 &                       BS_cpl_K_corr,K_EXCH_collision,K_CORR_collision,&
 &                       BS_oscillators_free,WF_phase,n_BS_blks,BS_blk,BS_T_grp,&
 &                       BS_K_has_been_calculated_loaded,BS_nT_grps,BS_blks_free,&
-&                       l_BSE_minimize_memory, l_restart_bse
+&                       l_BSE_minimize_memory, l_restart_bse, BS_ALDA_is_G,&
+& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
  use collision_el, ONLY:elemental_collision_free
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,&
 &                       RD,WR,RD_CL,RD_CL_IF_END,OP_WR_CL,WR_CL,OP_WR,OP_APP_CL,DUMP,&
 &                       deliver_IO_error_message
  use TDDFT,         ONLY:FXC_K_diagonal,FXC,FXC_n_g_corr,io_BS_Fxc
- use xc_functionals,ONLY:F_xc,XC_potential_driver
+ use xc_functionals,ONLY:F_xc,XC_potential_driver,fxc_separate, Fxc_x, Fxc_c
  use global_XC,     ONLY:WF_kind,WF_xc_functional
  use wave_func,     ONLY:WF
  use openmp,        ONLY:OPENMP_update,master_thread
@@ -89,6 +90,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  complex(SP),   external ::TDDFT_ALDA_R_space
  complex(SP),   external ::K_correlation_kernel
  complex(SP),   external ::K_exchange_kernel_resonant,K_exchange_kernel_coupling
+ complex(SP),   external ::K_ALDA_kernel_resonant,K_ALDA_kernel_coupling
+
  !
  ! Oscillators
  !
@@ -124,6 +127,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  else
    if (BS_K_is_ALDA) then
      section_title="TDDFT Kernel"
+   elseif(BS_K_is_HYB) then
+     section_title="Hybrid Kernel"
    else
      section_title="BSE Kernel"
    endif
@@ -187,7 +192,13 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  ! Screened interaction
  !======================
  io_X_err=0
- if (BS_res_K_corr) call K_screened_interaction(X,Xw,q,io_X_err)
+ if (BS_res_K_corr) then
+  if (BS_K_is_HYB.or.BS_K_is_SXX.or.BS_K_is_MDL) then
+    call K_screened_interaction(X,Xw,q,io_X_err)
+  else
+    call K_screened_interaction_std(X,Xw,q,io_X_err)
+  endif
+ endif
  !
  if (io_X_err<0) then
    call deliver_IO_error_message(io_X_err,'PP/Em1s')
@@ -207,9 +218,33 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  ! Wave Functions
  !================
  bands_to_load=BS_bands
- if (BS_K_is_ALDA) bands_to_load=(/1,BS_bands(2)/)
+ if (BS_K_is_ALDA.or.BS_K_is_HYB) bands_to_load=(/1,BS_bands(2)/)
  !
  section_title='-BSK'
+ !
+ BS_ALDA_is_G = .true.
+ if (BS_ALDA_is_G) then
+
+   if (.not.allocated(FXC)) then
+   !
+     FXC_n_g_corr = BS_n_g_W
+     if(BS_K_is_ALDA) FXC_n_g_corr = BS_n_g_exch
+     call TDDFT_ALDA_G_space(Ken,Xk)
+     call  msg('r','alda fxc_G allocated')
+   !
+!     if(BS_hybrd_type==4) then
+!       do i_g1=1,FXC_n_g_corr
+!        do i_g2=1,FXC_n_g_corr
+!          if(fft_g_table( G_m_G(i_g1,i_g2),1).gt.FXC_n_g_corr) call msg('r','our of bound of fft')
+!          FXC(i_g1,i_g2,1)=FXC(i_g1,i_g2,1)* &
+!     &     (1._SP-BS_hybrd_fracG(fft_g_table( G_m_G(i_g1,i_g2),1)))
+!        enddo
+!       enddo
+!     endif
+   !
+   endif
+ endif
+
  !
  call WF_load(WF,max(O_ng,BS_n_g_exch),O_ng_shift,bands_to_load,(/1,Xk%nibz/),space='R',title=trim(section_title))
  !
@@ -223,8 +258,15 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  ! ALDA
  !======
- if (BS_K_is_ALDA) then
+ if (BS_K_is_ALDA.or.(BS_K_is_HYB)) then
    YAMBO_ALLOC(F_xc,(fft_size,n_spin,n_spin))
+   if(BS_hybrd_type==2.or.BS_hybrd_type==3) then
+    fxc_separate = .true.
+    YAMBO_ALLOC(Fxc_x,(fft_size,n_spin,n_spin))
+    YAMBO_ALLOC(Fxc_c,(fft_size,n_spin,n_spin))
+   else
+    fxc_separate = .false.
+   endif
    call XC_potential_driver(Ken,Xk,WF_KIND,WF_xc_functional,2)
  endif
  !
@@ -339,7 +381,26 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
                                    &    BS_T_grp(i_Tgrp_p),i_Tp, BS_T_grp(i_Tgrp_k),i_Tk)
          !
          ! ALDA
-         if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES')
+         if (BS_K_is_ALDA)  then
+           if(.not.BS_ALDA_is_G) then
+             H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',4)
+           else
+             H_x=H_x+K_ALDA_kernel_resonant(iq, FXC_n_g_corr,               &
+                                   &    BS_T_grp(i_Tgrp_p),i_Tp, BS_T_grp(i_Tgrp_k),i_Tk)
+           endif
+         endif
+         !
+         ! Hybrid
+         if(BS_K_is_HYB)  then
+            select case(BS_hybrd_type)
+             case(1)  
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',4)
+             case(2)
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',1)+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',2)
+             case(3)
+               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',3)
+            end select
+         endif
          !
          ! Correlations
          if (BS_res_K_corr)     H_c=K_correlation_kernel(i_block,i_p,i_pmq, &
@@ -360,6 +421,9 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          !
          ! ALDA
          if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
+         !
+         ! Hybrid
+         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
          !
          ! Correlations
          if (BS_cpl_K_corr)     H_c=K_correlation_kernel(i_block,i_p,i_pmq, &
@@ -459,8 +523,12 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  if (l_bs_fxc) then
    !
    !
- else if (BS_K_is_ALDA) then
-   YAMBO_FREE(F_xc)
+ else if (BS_K_is_ALDA.or.BS_K_is_HYB) then
+  YAMBO_FREE(F_xc)
+  if(BS_hybrd_type==2.or.BS_hybrd_type==3) then
+  YAMBO_FREE(Fxc_x)
+  YAMBO_FREE(Fxc_c)
+  endif
  endif
  !
 1 continue

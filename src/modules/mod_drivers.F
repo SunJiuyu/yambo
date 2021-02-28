@@ -92,9 +92,13 @@ module drivers
  logical :: l_alda_fxc           =.FALSE.
  logical :: l_bs_fxc             =.FALSE.
  logical :: l_lrc_fxc            =.FALSE.
+ logical :: l_dual_fxc            =.FALSE.
  logical :: l_pf_fxc             =.FALSE.
  logical :: l_td_hf              =.FALSE.
  logical :: l_W_eh               =.FALSE.
+ logical :: l_bsk_hybrd          =.FALSE.
+ logical :: l_bsk_model          =.FALSE.
+ logical :: l_bsk_sxx            =.FALSE.
  logical :: l_W_eh_diag          =.FALSE.
  logical :: l_W_eh_cpl           =.FALSE.
  !
