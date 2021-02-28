@@ -222,7 +222,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  section_title='-BSK'
  !
- BS_ALDA_is_G = .true.
+ BS_ALDA_is_G = .false.
  if (BS_ALDA_is_G) then
 
    if (.not.allocated(FXC)) then
