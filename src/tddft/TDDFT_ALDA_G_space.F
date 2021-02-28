@@ -33,6 +33,7 @@ subroutine TDDFT_ALDA_G_space(E,k)
  use xc_functionals,ONLY:F_xc,magn,XC_potential_driver
  use global_XC,     ONLY:WF_kind,WF_xc_functional
  use interfaces,    ONLY:WF_load,WF_free,eval_G_minus_G
+ use BS,            ONLY:BS_hybrd_type,BS_hybrd_fracG
  !
 #include<memory.h>
  !
@@ -85,10 +86,23 @@ subroutine TDDFT_ALDA_G_space(E,k)
  !
  ! Fxc
  !
+! open(82,file='hyb_frac.dat')
  YAMBO_ALLOC(FXC,(FXC_n_g_corr,FXC_n_g_corr,1))
  do i1=1,FXC_n_g_corr
    do i2=1,FXC_n_g_corr
+     if(.not.BS_hybrd_type==4) then
      FXC(i1,i2,1)=cmplx(F_xc_DP( fft_g_table( G_m_G(i1,i2),1) ),kind=SP)/real(fft_size,SP)
+!     call msg('r','FXC bare allocated')
+     else
+	if (fft_g_table( G_m_G(i1,i2),1).gt. FXC_n_g_corr ) then
+ 	FXC(i1,i2,1)= cmplx(0._SP,0._SP)
+	else
+  FXC(i1,i2,1)=cmplx(F_xc_DP( fft_g_table( G_m_G(i1,i2),1) ),kind=SP)/real(fft_size,SP)
+       FXC(i1,i2,1)=FXC(i1,i2,1)* &
+       &     (1._SP-BS_hybrd_fracG(fft_g_table( G_m_G(i1,i2),1)))
+!	write(82,*) fft_g_table( G_m_G(i1,i2),1), real(BS_hybrd_fracG(fft_g_table( G_m_G(i1,i2),1)) )
+	endif
+     endif
    enddo
  enddo
  !

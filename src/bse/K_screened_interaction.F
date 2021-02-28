@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2019 the YAMBO team
+!        Copyright (C) 2000-2020 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): DS
@@ -38,7 +38,8 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  use X_m,          ONLY:X_mat_d
 #endif
  use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W,   &
-& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,  &
+& BS_hybrd_frac,BS_hybrd_type,BS_hybrd_fracG, BS_ALDA_is_G
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,RD,RD_CL,RD_CL_IF_END
  use deviceXlib_m, ONLY:dev_memcpy
  !
@@ -68,6 +69,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  integer, external :: io_X
 
  logical              ::  BS_eM_is_manual=.false.
+ logical              ::  BS_hyb_is_global,BS_W_is_model=.false.
  real(SP),allocatable  :: model_epsilon(:,:)
  real(SP)             :: ele_density,q_ThmsFrm2,m2wp2,BS_K_eM
 
@@ -75,6 +77,8 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  q_ThmsFrm2 = 4.0*(3.0*ele_density/pi)**(1.0/3.0)/BO2ANG  !Thomas-Fermi vector: q_tf^2 = 
  m2wp2 = ele_density*9.10938/8.854*1.602176462**2  ! free electron plasma freqency: wp^2 = density*e^2/e0/m_e
  ! 
+
+! open(81,file='model_inv_eps.dat')
  if (l_td_hf) then
    !
    io_X_err=0
@@ -103,6 +107,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    endif
 
    if(BS_K_is_MDL) then
+    BS_W_is_model = .true.
     call msg('r','Model dielectric function kernel')
       allocate(model_epsilon(BS_n_g_W,1))
     if(BS_K_eMread.gt.0.99) then
@@ -134,11 +139,20 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
     case(1)
  !   if(BS_n_g_W)
       call msg('r','We are doing SXX + (1-a)*ALDA ',BS_hybrd_type)
+      BS_hyb_is_global=.true.
     case(2)
       call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c ',BS_hybrd_type)
+      BS_hyb_is_global=.true.
     case(3)
       call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together ',BS_hybrd_type)
-!    call msg('r','We are doing SXX, empirical epsilon ',BS_SXX_type)
+      BS_hyb_is_global=.true.
+    case(4)
+      call msg('r','We are doing Range-separated DDH in G-space, as well as ALDA',BS_hybrd_type)
+      BS_ALDA_is_G = .true.
+      BS_hyb_is_global=.false.
+      BS_W_is_model=.true.
+      allocate(BS_hybrd_fracG(BS_n_g_W))
+      allocate(model_epsilon(BS_n_g_W,1))
     end select
 
    endif
@@ -210,7 +224,6 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    endif
  endif
  !
- 
  do iq_W=1,q%nibz
    !
    isc%qs(2)=iq_W
@@ -230,7 +243,13 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
      if(iq_W.eq.1) then
       BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
-      if(BS_K_is_HYB)  BS_hybrd_frac = 1._SP/BS_K_eM
+      if(BS_K_is_HYB) then
+!        if(BS_hyb_is_global) then
+          BS_hybrd_frac = 1._SP/BS_K_eM
+!        else
+!          forall(i_g2=1:BS_n_g_W) BS_hybrd_fracG(i_g2)=1._SP/(1._SP+X_mat(i_g2,i_g2,1))
+!         endif
+      endif
      endif
     endif
      !
@@ -258,14 +277,23 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      endif
 #else
      if (BS_W_is_diagonal) then
-      if(BS_K_is_SXX.or.BS_K_is_HYB) then
+      if(BS_K_is_SXX.or.(BS_K_is_HYB.and.BS_hyb_is_global)) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
-      elseif(BS_K_is_MDL) then
+      elseif(BS_W_is_model) then
        do i_g2=1,BS_n_g_W
+        !
         model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
 &   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
 &   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
+        !
         BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
+!	call msg('r','model_epsilon(i_g2): ', real(1._SP/model_epsilon(i_g2,1)))
+!write(18,*) i_g2, real(1._SP/model_epsilon(i_g2,1))
+        if(iq_W==1.and.BS_hybrd_type==4) then
+	  BS_hybrd_fracG(i_g2)=1._SP/model_epsilon(i_g2,1)
+!	write(81,*) i_g2, real(1._SP/model_epsilon(i_g2,1))
+!	  call msg('r','BS_hybrd_fracG: ' )
+	endif
        enddo
       endif
      else if (.not.BS_W_is_diagonal) then

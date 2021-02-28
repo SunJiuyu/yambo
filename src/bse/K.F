@@ -1,5 +1,5 @@
 !
-!        Copyright (C) 2000-2019 the YAMBO team
+!        Copyright (C) 2000-2020 the YAMBO team
 !              http://www.yambo-code.org
 !
 ! Authors (see AUTHORS file for details): AM DS AF
@@ -31,7 +31,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  use drivers,      ONLY:l_bs_fxc,l_bss
  use frequency,    ONLY:w_samp
  use electrons,    ONLY:levels,spin_occ,spin,n_spin,E_SOC_nbands
- use FFT_m,        ONLY:fft_size
+ use FFT_m,        ONLY:fft_size,fft_g_table
  use interfaces,   ONLY:WF_load,WF_free
  use functions,    ONLY:K_scatter
  use D_lattice,    ONLY:nsym,DL_vol,i_time_rev,sop_tab,sop_inv,i_space_inv
@@ -41,15 +41,16 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  use LIVE_t,       ONLY:live_timing
  use X_m,          ONLY:X_t
  use BS_solvers,   ONLY:BSS_q0
- use BS,           ONLY:BS_bands,BS_res_K_corr,BS_W,BS_W_is_diagonal,&
+ use BS,           ONLY:BS_bands,BS_res_K_corr,BS_W,BS_n_g_W,BS_W_is_diagonal,&
 &                       BS_res_K_exchange,BS_Block_size,&
-&                       O_ng,BS_n_g_W,BS_n_g_exch,BS_identifier,BS_LiveTiming_steps,&
+&                       O_ng,BS_n_g_exch,BS_identifier,BS_LiveTiming_steps,&
 &                       BS_K_dim,BS_K_is_ALDA,BS_cpl_K_exchange,&
 &                       BS_cpl_K_corr,K_EXCH_collision,K_CORR_collision,&
 &                       BS_oscillators_free,WF_phase,n_BS_blks,BS_blk,BS_T_grp,&
 &                       BS_K_has_been_calculated_loaded,BS_nT_grps,BS_blks_free,&
-&                       l_BSE_minimize_memory, l_restart_bse, BS_ALDA_is_G,&
-& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+&                       l_BSE_minimize_memory, l_restart_bse, BS_ALDA_is_G, &
+&   BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,&
+& BS_hybrd_frac,BS_hybrd_type, BS_K_is_HYB, BS_hybrd_fracG
  use collision_el, ONLY:elemental_collision_free
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,&
 &                       RD,WR,RD_CL,RD_CL_IF_END,OP_WR_CL,WR_CL,OP_WR,OP_APP_CL,DUMP,&
@@ -91,7 +92,6 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  complex(SP),   external ::K_correlation_kernel
  complex(SP),   external ::K_exchange_kernel_resonant,K_exchange_kernel_coupling
  complex(SP),   external ::K_ALDA_kernel_resonant,K_ALDA_kernel_coupling
-
  !
  ! Oscillators
  !
@@ -101,6 +101,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  integer           ::io_X_err,io_BS_Fxc_err,io_BS_err,ID
  integer, external ::io_BS
+ integer :: i_g1,i_g2
  !
  ! Constants & Setup
  !==================
@@ -222,7 +223,6 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  section_title='-BSK'
  !
- BS_ALDA_is_G = .false.
  if (BS_ALDA_is_G) then
 
    if (.not.allocated(FXC)) then
@@ -245,6 +245,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    endif
  endif
 
+ call msg('r','we are ok')
  !
  call WF_load(WF,max(O_ng,BS_n_g_exch),O_ng_shift,bands_to_load,(/1,Xk%nibz/),space='R',title=trim(section_title))
  !
@@ -258,7 +259,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  ! ALDA
  !======
- if (BS_K_is_ALDA.or.(BS_K_is_HYB)) then
+ call msg('r','we are ok')
+ if (BS_K_is_ALDA.or.(BS_K_is_HYB).and..not.BS_ALDA_is_G) then
    YAMBO_ALLOC(F_xc,(fft_size,n_spin,n_spin))
    if(BS_hybrd_type==2.or.BS_hybrd_type==3) then
     fxc_separate = .true.
@@ -270,6 +272,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    call XC_potential_driver(Ken,Xk,WF_KIND,WF_xc_functional,2)
  endif
  !
+ call msg('r','we are ok')
+
  ! DB identifier 
  !===============
  BS_identifier=pickup_a_random(10000._SP)
@@ -399,6 +403,9 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
                H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',1)+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',2)
              case(3)
                H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',3)
+             case(4)
+               H_x=H_x+K_ALDA_kernel_resonant(iq, FXC_n_g_corr,               &
+                                   &    BS_T_grp(i_Tgrp_p),i_Tp, BS_T_grp(i_Tgrp_k),i_Tk)
             end select
          endif
          !
@@ -522,8 +529,10 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  if (l_bs_fxc) then
    !
+ else if (BS_ALDA_is_G) then
+ YAMBO_FREE(FXC)  
    !
- else if (BS_K_is_ALDA.or.BS_K_is_HYB) then
+ else if (BS_K_is_ALDA.or.BS_K_is_HYB.and..not.BS_ALDA_is_G) then
   YAMBO_FREE(F_xc)
   if(BS_hybrd_type==2.or.BS_hybrd_type==3) then
   YAMBO_FREE(Fxc_x)
