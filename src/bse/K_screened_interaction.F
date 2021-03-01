@@ -39,7 +39,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
 #endif
  use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W,   &
 & BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,  &
-& BS_hybrd_frac,BS_hybrd_type,BS_hybrd_fracG,BS_hybrd_fracR, BS_ALDA_is_G
+& BS_hybrd_fracH,BS_hybrd_type,BS_hybrd_frac, BS_ALDA_is_G
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,RD,RD_CL,RD_CL_IF_END
  use deviceXlib_m, ONLY:dev_memcpy
  use fft_m,        ONLY: fft_size,fft_dim,fftw_plan,fft_g_table
@@ -304,7 +304,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
 
         if(iq_W==1 .and. BS_K_is_HYB==5) then
           do i_g2=1,BS_n_g_W
-            BS_hybrd_fracR(fft_g_table(i_g2,1))=(real(BS_hybrd_frac(i_g2),DP), 0._DP)
+            BS_hybrd_fracR(fft_g_table(i_g2,1))=cmplx(real(BS_hybrd_frac(i_g2),DP), 0._DP)
           enddo
           !
           do i_g2=BS_n_g_W+1,fft_size
