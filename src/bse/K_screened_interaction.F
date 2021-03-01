@@ -23,7 +23,7 @@
 !
 subroutine K_screened_interaction(X,Xw,q,io_X_err)
  !
- use pars,         ONLY:SP,pi,cZERO,cI
+ use pars,         ONLY:SP,pi,cZERO,cI,DP
  use stderr,       ONLY:intc
  use units,        ONLY:HBAR_eVfs,BO2ANG,HBAR_SI
  use frequency,    ONLY:w_samp
@@ -39,9 +39,10 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
 #endif
  use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W,   &
 & BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,  &
-& BS_hybrd_frac,BS_hybrd_type,BS_hybrd_fracG, BS_ALDA_is_G
+& BS_hybrd_frac,BS_hybrd_type,BS_hybrd_fracG,BS_hybrd_fracR, BS_ALDA_is_G
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,RD,RD_CL,RD_CL_IF_END
  use deviceXlib_m, ONLY:dev_memcpy
+ use fft_m,        ONLY: fft_size,fft_dim,fftw_plan,fft_g_table
  !
 #include<dev_defs.h>
 #include<memory.h>
@@ -71,6 +72,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  logical              ::  BS_eM_is_manual=.false.
  logical              ::  BS_hyb_is_global,BS_W_is_model=.false.
  real(SP),allocatable  :: model_epsilon(:,:)
+ complex(DP),allocatable :: BS_hybrd_fracR(:)
  real(SP)             :: ele_density,q_ThmsFrm2,m2wp2,BS_K_eM
 
  ele_density = nel/DL_vol/(BO2ANG**3)  ! density of electron, unit: A^{-3}
@@ -123,13 +125,13 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
 
    if(BS_K_is_HYB) then
 !     allocate(inv_epsilon(1,1))
-     if(BS_hybrd_frac.gt.1E-4) then
+     if(BS_hybrd_fracH.gt.1E-4) then
       BS_eM_is_manual = .true.
 !      inv_epsilon(1,1) = BS_hybrd_frac
-      BS_K_eM = 1._SP/BS_hybrd_frac
+      BS_K_eM = 1._SP/BS_hybrd_fracH
       BS_K_eMread = BS_K_eM
       call msg('r','We use manual epsilon: ', BS_K_eM)
-     elseif(BS_hybrd_frac.lt.-0.1) then
+     elseif(BS_hybrd_fracH.lt.-0.1) then
       BS_K_eMread = 0.0
       BS_K_eM = 0.0
       call msg('r','We use RPA epsilon: ', BS_K_eM) 
@@ -151,7 +153,15 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       BS_ALDA_is_G = .true.
       BS_hyb_is_global=.false.
       BS_W_is_model=.true.
-      allocate(BS_hybrd_fracG(BS_n_g_W))
+      allocate(BS_hybrd_frac(BS_n_g_W))
+      allocate(model_epsilon(BS_n_g_W,1))
+    case(5)
+      call msg('r','We are doing Range-separated DDH in G-space, as well as ALDA',BS_hybrd_type)
+      BS_ALDA_is_G = .false.
+      BS_hyb_is_global=.false.
+      BS_W_is_model=.true.
+      allocate(BS_hybrd_frac(fft_size))
+      allocate(BS_hybrd_fracR(fft_size))
       allocate(model_epsilon(BS_n_g_W,1))
     end select
 
@@ -245,7 +255,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
       if(BS_K_is_HYB) then
 !        if(BS_hyb_is_global) then
-          BS_hybrd_frac = 1._SP/BS_K_eM
+          BS_hybrd_fracH = 1._SP/BS_K_eM
 !        else
 !          forall(i_g2=1:BS_n_g_W) BS_hybrd_fracG(i_g2)=1._SP/(1._SP+X_mat(i_g2,i_g2,1))
 !         endif
@@ -287,14 +297,34 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
 &   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
         !
         BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
-!	call msg('r','model_epsilon(i_g2): ', real(1._SP/model_epsilon(i_g2,1)))
-!write(18,*) i_g2, real(1._SP/model_epsilon(i_g2,1))
-        if(iq_W==1.and.BS_hybrd_type==4) then
-	  BS_hybrd_fracG(i_g2)=1._SP/model_epsilon(i_g2,1)
-!	write(81,*) i_g2, real(1._SP/model_epsilon(i_g2,1))
-!	  call msg('r','BS_hybrd_fracG: ' )
-	endif
-       enddo
+        !
+        ! begin fractional of hybrid functional
+        if(iq_W==1 .and. BS_K_is_HYB) BS_hybrd_frac(i_g2)=1._SP/model_epsilon(i_g2,1)
+       enddo ! ig < ng_W
+
+        if(iq_W==1 .and. BS_K_is_HYB==5) then
+          do i_g2=1,BS_n_g_W
+            BS_hybrd_fracR(fft_g_table(i_g2,1))=(real(BS_hybrd_frac(i_g2),DP), 0._DP)
+          enddo
+          !
+          do i_g2=BS_n_g_W+1,fft_size
+            BS_hybrd_fracR(fft_g_table(i_g2,1))=(1._DP, 0._DP)
+          enddo ! ig > ng_W
+          !
+          ! do FT to R-space
+#if defined _FFTW
+    call dfftw_destroy_plan(fftw_plan)
+    fftw_plan = 0
+    call fft_3d(BS_hybrd_fracR,fft_dim,1,fftw_plan)
+#else
+    call fft_3d(BS_hybrd_fracR,fft_dim,1)
+#endif
+
+          BS_hybrd_frac(:) = real(BS_hybrd_fracR,SP)
+          deallocate( BS_hybrd_fracR )
+        endif
+        ! end of fractional of hybrid functionals
+       
       endif
      else if (.not.BS_W_is_diagonal) then
        call warning("off-diagonal W is not supported currently!!")

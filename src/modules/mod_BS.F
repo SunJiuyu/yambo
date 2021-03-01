@@ -43,8 +43,8 @@ module BS
  logical :: BS_K_is_SXX
  logical :: BS_K_is_MDL 
  real(SP) :: BS_K_eMread
- real(SP) :: BS_hybrd_frac
- real(SP),allocatable :: BS_hybrd_fracG(:)
+ real(SP) :: BS_hybrd_fracH
+ real(SP),allocatable :: BS_hybrd_frac(:)
  integer :: BS_hybrd_type
  logical :: BS_not_const_eh_f
  logical :: BS_K_has_been_calculated_loaded=.FALSE.

@@ -50,7 +50,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
 &                       BS_K_has_been_calculated_loaded,BS_nT_grps,BS_blks_free,&
 &                       l_BSE_minimize_memory, l_restart_bse, BS_ALDA_is_G, &
 &   BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,&
-& BS_hybrd_frac,BS_hybrd_type, BS_K_is_HYB, BS_hybrd_fracG
+& BS_hybrd_frac,BS_hybrd_type, BS_K_is_HYB, BS_hybrd_fracH
  use collision_el, ONLY:elemental_collision_free
  use IO_m,         ONLY:io_control,OP_RD_CL,REP,VERIFY,NONE,OP_RD,&
 &                       RD,WR,RD_CL,RD_CL_IF_END,OP_WR_CL,WR_CL,OP_WR,OP_APP_CL,DUMP,&
@@ -231,17 +231,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
      if(BS_K_is_ALDA) FXC_n_g_corr = BS_n_g_exch
      call TDDFT_ALDA_G_space(Ken,Xk)
      call  msg('r','alda fxc_G allocated')
-   !
-!     if(BS_hybrd_type==4) then
-!       do i_g1=1,FXC_n_g_corr
-!        do i_g2=1,FXC_n_g_corr
-!          if(fft_g_table( G_m_G(i_g1,i_g2),1).gt.FXC_n_g_corr) call msg('r','our of bound of fft')
-!          FXC(i_g1,i_g2,1)=FXC(i_g1,i_g2,1)* &
-!     &     (1._SP-BS_hybrd_fracG(fft_g_table( G_m_G(i_g1,i_g2),1)))
-!        enddo
-!       enddo
-!     endif
-   !
+     !
    endif
  endif
 
@@ -398,14 +388,16 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          if(BS_K_is_HYB)  then
             select case(BS_hybrd_type)
              case(1)  
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',4)
+               H_x=H_x+(1._SP-BS_hybrd_fracH)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',4)
              case(2)
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',1)+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',2)
+               H_x=H_x+(1._SP-BS_hybrd_fracH)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',1)+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',2)
              case(3)
                H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',3)
              case(4)
                H_x=H_x+K_ALDA_kernel_resonant(iq, FXC_n_g_corr,               &
                                    &    BS_T_grp(i_Tgrp_p),i_Tp, BS_T_grp(i_Tgrp_k),i_Tk)
+             case(5)
+               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',5)
             end select
          endif
          !
@@ -430,7 +422,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
          !
          ! Hybrid
-         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
+         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_fracH)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
          !
          ! Correlations
          if (BS_cpl_K_corr)     H_c=K_correlation_kernel(i_block,i_p,i_pmq, &
