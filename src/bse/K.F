@@ -404,6 +404,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
                                    &    BS_T_grp(i_Tgrp_p),i_Tp, BS_T_grp(i_Tgrp_k),i_Tk)
              case(5)
                H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',5)
+             case(6)
+               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',5)
             end select
          endif
          !

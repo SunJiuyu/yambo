@@ -190,7 +190,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=XID)
      io_X_err=io_X(X,Xw,XID) 
      !
-     call msg('r', 'io_X_err: ', io_X_err)
+!     call msg('r', 'io_X_err: ', io_X_err)
      if(io_X_err<0) return
 
      endif
@@ -260,9 +260,9 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
        return
      endif
      !
-     !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+     forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
      if(iq_W.eq.1) then
-      BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
+      BS_K_eM = 1._SP/real(X_mat(1,1,1))
       if(BS_K_is_HYB) BS_hybrd_fracH = 1._SP/BS_K_eM
      endif
     endif
@@ -294,9 +294,8 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       if(BS_K_is_SXX.or.(BS_K_is_HYB.and.BS_hyb_is_global)) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
       ! test hybrid2D
-      if(BS_hybrd_type==6 .and.(.not.BS_eM_is_manual)) then
+      elseif(BS_hybrd_type==6 .and.(.not.BS_eM_is_manual)) then
       ! W part
-       forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=real(X_mat(i_g2,i_g2,1),SP)*isc%gamp(i_g2,1) 
        ! fxc part
        if(iq_W==1) then
