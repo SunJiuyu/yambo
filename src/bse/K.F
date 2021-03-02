@@ -195,7 +195,13 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  io_X_err=0
  if (BS_res_K_corr) then
   if (BS_K_is_HYB.or.BS_K_is_SXX.or.BS_K_is_MDL) then
+! call WF_load to setup fft_g_table
+ bands_to_load=BS_bands
+ call WF_load(WF,max(O_ng,BS_n_g_exch),O_ng_shift,bands_to_load,(/1,Xk%nibz/),space='R',title=trim(section_title))
+!
     call K_screened_interaction(X,Xw,q,io_X_err)
+!
+ call WF_free(WF)
   else
     call K_screened_interaction_std(X,Xw,q,io_X_err)
   endif
@@ -235,7 +241,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    endif
  endif
 
- call msg('r','we are ok')
+! call msg('r','we are ok')
  !
  call WF_load(WF,max(O_ng,BS_n_g_exch),O_ng_shift,bands_to_load,(/1,Xk%nibz/),space='R',title=trim(section_title))
  !
@@ -249,7 +255,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  ! ALDA
  !======
- call msg('r','we are ok')
+! call msg('r','we are ok')
  if (BS_K_is_ALDA.or.(BS_K_is_HYB).and..not.BS_ALDA_is_G) then
    YAMBO_ALLOC(F_xc,(fft_size,n_spin,n_spin))
    if(BS_hybrd_type==2.or.BS_hybrd_type==3) then

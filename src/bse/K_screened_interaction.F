@@ -156,12 +156,13 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       allocate(BS_hybrd_frac(BS_n_g_W))
       allocate(model_epsilon(BS_n_g_W,1))
     case(5)
-      call msg('r','We are doing Range-separated DDH in G-space, as well as ALDA',BS_hybrd_type)
+      call msg('r','We are doing Range-separated DDH in R-space, as well as ALDA',BS_hybrd_type)
       BS_ALDA_is_G = .false.
       BS_hyb_is_global=.false.
       BS_W_is_model=.true.
       allocate(BS_hybrd_frac(fft_size))
       allocate(BS_hybrd_fracR(fft_size))
+ call msg('r','we are ok after alloc', fft_size)
       allocate(model_epsilon(BS_n_g_W,1))
     end select
 
@@ -290,6 +291,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       if(BS_K_is_SXX.or.(BS_K_is_HYB.and.BS_hyb_is_global)) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
       elseif(BS_W_is_model) then
+       ! 
        do i_g2=1,BS_n_g_W
         !
         model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
@@ -299,28 +301,35 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
         BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
         !
         ! begin fractional of hybrid functional
-        if(iq_W==1 .and. BS_K_is_HYB) BS_hybrd_frac(i_g2)=1._SP/model_epsilon(i_g2,1)
+        if(iq_W==1 .and. BS_K_is_HYB) BS_hybrd_frac(i_g2)=1._SP-1._SP/model_epsilon(i_g2,1)
        enddo ! ig < ng_W
 
-        if(iq_W==1 .and. BS_K_is_HYB==5) then
+        if(iq_W==1 .and. BS_hybrd_type==5) then
+          BS_hybrd_fracR=(0._DP, 0._DP)
+
           do i_g2=1,BS_n_g_W
+! call msg('r','fft_g_table: ',  fft_g_table(i_g2,1))
             BS_hybrd_fracR(fft_g_table(i_g2,1))=cmplx(real(BS_hybrd_frac(i_g2),DP), 0._DP)
           enddo
           !
-          do i_g2=BS_n_g_W+1,fft_size
-            BS_hybrd_fracR(fft_g_table(i_g2,1))=(1._DP, 0._DP)
-          enddo ! ig > ng_W
+!          do i_g2=BS_n_g_W+1,fft_size
+!            BS_hybrd_fracR(fft_g_table(i_g2,1))=(1._DP, 0._DP)
+!          enddo ! ig > ng_W
           !
           ! do FT to R-space
 #if defined _FFTW
     call dfftw_destroy_plan(fftw_plan)
     fftw_plan = 0
-    call fft_3d(BS_hybrd_fracR,fft_dim,1,fftw_plan)
+    call fft_3d(BS_hybrd_fracR/real(fft_size,DP),fft_dim,1,fftw_plan)
 #else
-    call fft_3d(BS_hybrd_fracR,fft_dim,1)
+    call fft_3d(BS_hybrd_fracR/real(fft_size,DP),fft_dim,1)
 #endif
-
-          BS_hybrd_frac(:) = real(BS_hybrd_fracR,SP)
+!
+          BS_hybrd_frac(:) = real(BS_hybrd_fracR(:),SP)
+          do i_g2=1,fft_size
+            call msg('r','BS_hybrd_frac: ',BS_hybrd_frac(i_g2))
+!            call msg('r','BS_hybrd_frac/fft_size: ',BS_hybrd_frac(i_g2)/fft_size)
+          enddo
           deallocate( BS_hybrd_fracR )
         endif
         ! end of fractional of hybrid functionals

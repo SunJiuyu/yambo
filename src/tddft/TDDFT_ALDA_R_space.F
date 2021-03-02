@@ -94,7 +94,7 @@ function TDDFT_ALDA_R_space(is,os,isp,osp,mode,ixc)
    case (3)
      rhotwr2(:,1)=((1._SP-BS_hybrd_fracH)*Fxc_x(:,1,1)+Fxc_c(:,1,1))*WF_symm1(:,1)*conjg(WF_symm2(:,1))
    case (5)
-     rhotwr2(:,1)=(1._SP-BS_hybrd_frac(:))*F_xc(: ,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+     rhotwr2(:,1)=BS_hybrd_frac(:)*F_xc(: ,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
   end select
  endif
  !

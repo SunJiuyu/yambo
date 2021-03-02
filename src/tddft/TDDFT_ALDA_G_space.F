@@ -99,7 +99,7 @@ subroutine TDDFT_ALDA_G_space(E,k)
 	else
   FXC(i1,i2,1)=cmplx(F_xc_DP( fft_g_table( G_m_G(i1,i2),1) ),kind=SP)/real(fft_size,SP)
        FXC(i1,i2,1)=FXC(i1,i2,1)* &
-       &     (1._SP-BS_hybrd_frac(fft_g_table( G_m_G(i1,i2),1)))
+       &     BS_hybrd_frac(fft_g_table( G_m_G(i1,i2),1))
 !	write(82,*) fft_g_table( G_m_G(i1,i2),1), real(BS_hybrd_fracG(fft_g_table( G_m_G(i1,i2),1)) )
 	endif
      endif
