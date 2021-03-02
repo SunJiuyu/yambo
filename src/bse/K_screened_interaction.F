@@ -164,6 +164,15 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
       allocate(BS_hybrd_fracR(fft_size))
  call msg('r','we are ok after alloc', fft_size)
       allocate(model_epsilon(BS_n_g_W,1))
+    case(6)  ! rpa epsilon for 2D test, further 2D model
+      call msg('r','We are doing Range-separated DDH in R-space, epsilon read from RPA',BS_hybrd_type)
+      BS_ALDA_is_G = .false.
+      BS_hyb_is_global=.false.
+      BS_W_is_model=.false.
+      allocate(BS_hybrd_frac(fft_size))
+      allocate(BS_hybrd_fracR(fft_size))
+ call msg('r','we are ok after alloc', fft_size)
+!      allocate(model_epsilon(BS_n_g_W,1))
     end select
 
    endif
@@ -254,13 +263,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
      if(iq_W.eq.1) then
       BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
-      if(BS_K_is_HYB) then
-!        if(BS_hyb_is_global) then
-          BS_hybrd_fracH = 1._SP/BS_K_eM
-!        else
-!          forall(i_g2=1:BS_n_g_W) BS_hybrd_fracG(i_g2)=1._SP/(1._SP+X_mat(i_g2,i_g2,1))
-!         endif
-      endif
+      if(BS_K_is_HYB) BS_hybrd_fracH = 1._SP/BS_K_eM
      endif
     endif
      !
@@ -290,6 +293,38 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      if (BS_W_is_diagonal) then
       if(BS_K_is_SXX.or.(BS_K_is_HYB.and.BS_hyb_is_global)) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
+      ! test hybrid2D
+      if(BS_hybrd_type==6 .and.(.not.BS_eM_is_manual)) then
+      ! W part
+       forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+       forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=real(X_mat(i_g2,i_g2,1),SP)*isc%gamp(i_g2,1) 
+       ! fxc part
+       if(iq_W==1) then
+
+         BS_hybrd_fracR=(0._DP, 0._DP)
+
+         do i_g2=1,BS_n_g_W
+! call msg('r','fft_g_table: ',  fft_g_table(i_g2,1))
+          BS_hybrd_frac(i_g2)=1._SP-real(X_mat(i_g2,i_g2,1),SP)
+          BS_hybrd_fracR(fft_g_table(i_g2,1))=cmplx(real(BS_hybrd_frac(i_g2),DP), 0._DP)
+         enddo
+          ! do FT to R-space
+#if defined _FFTW
+    call dfftw_destroy_plan(fftw_plan)
+    fftw_plan = 0
+    call fft_3d(BS_hybrd_fracR/real(fft_size,DP),fft_dim,1,fftw_plan)
+#else
+    call fft_3d(BS_hybrd_fracR/real(fft_size,DP),fft_dim,1)
+#endif
+!
+         BS_hybrd_frac(:) = real(BS_hybrd_fracR(:),SP)
+         do i_g2=1,fft_size
+           call msg('r','BS_hybrd_frac: ',BS_hybrd_frac(i_g2))
+!            call msg('r','BS_hybrd_frac/fft_size: ',BS_hybrd_frac(i_g2)/fft_size)
+         enddo
+         deallocate( BS_hybrd_fracR )
+       endif
+      !       
       elseif(BS_W_is_model) then
        ! 
        do i_g2=1,BS_n_g_W
