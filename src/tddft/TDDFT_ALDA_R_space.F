@@ -85,15 +85,15 @@ function TDDFT_ALDA_R_space(is,os,isp,osp,mode,ixc)
  !
  if( n_spin==1 ) then
    select case(ixc) 
-   case (1)
+   case (1) ! bare x only
      rhotwr2(:,1)=Fxc_x(:,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
-   case (2)
+   case (2) ! bare c only
      rhotwr2(:,1)=Fxc_c(:,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
-   case (4)
+   case (4) ! xc together, global screened
      rhotwr2(:,1)=F_xc(: ,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
-   case (3)
-     rhotwr2(:,1)=((1._SP-BS_hybrd_fracH)*Fxc_x(:,1,1)+Fxc_c(:,1,1))*WF_symm1(:,1)*conjg(WF_symm2(:,1))
-   case (5)
+   case (3) ! xc sepa, range screened
+     rhotwr2(:,1)=(BS_hybrd_frac(:)*Fxc_x(:,1,1)+Fxc_c(:,1,1))*WF_symm1(:,1)*conjg(WF_symm2(:,1))
+   case (5) ! xc together, range screened
      rhotwr2(:,1)=BS_hybrd_frac(:)*F_xc(: ,  1  ,   1  )*WF_symm1(:,1)*conjg(WF_symm2(:,1))
   end select
  endif

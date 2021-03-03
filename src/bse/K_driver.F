@@ -114,8 +114,7 @@ subroutine K_driver(Xen,Ken,Xk,q,X_static_pp,Xw,Dip)
  BS_cpl_K_exchange=index(BS_cpl_mode,'x')/=0
  BS_K_coupling=any((/BS_cpl_K_corr,BS_cpl_K_exchange/)) 
  BSS_add_antiresonant=index(BSE_mode,'retarded')/=0
- BS_W_is_diagonal=index(BS_res_mode,'d')/=0
- BS_W_is_diagonal=l_bsk_sxx.or.l_bsk_model.or.l_bsk_hybrd
+ BS_W_is_diagonal=l_bsk_sxx.or.l_bsk_model.or.l_bsk_hybrd.or.(index(BS_res_mode,'d')/=0)
  BS_K_is_SXX=l_bsk_sxx
  BS_K_is_MDL=l_bsk_model
  BS_K_is_HYB=l_bsk_hybrd
