@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine scatter_ModScr(isc,mu)
+subroutine scatter_ModScr(isc,mu,QP_hyb_screnn)
  !
  ! multiply scatterGamp by exp((-|q+G|^2)/(4\mu^2))
  !
@@ -31,12 +31,15 @@ subroutine scatter_ModScr(isc,mu)
  use R_lattice,     ONLY:bare_qpg,d3q_factor
  use global_XC,     ONLY:WF_xc_functional
  use xc_functionals,ONLY:XC_HYB_GGA_XC_GAUPBE,XC_FACTOR
+ use X_m,           ONLY:X_alloc,X_t,X_mat
+ use QP_m,          ONLY:QP_hyb_screen
 
  !
  implicit none
  !
  type(elemental_collision)::isc
  real(SP)                 :: mu,Co,bare_qpg_true
+ logical :: hyb2d
  !
  !Working Space
  !
@@ -46,6 +49,7 @@ subroutine scatter_ModScr(isc,mu)
  isc%iqref=iq
  !
  ng=shape(isc%gamp)
+ hyb2d = .true.
  !
  Co=(pi/mu)**(3._SP/2._SP)/(4._SP*pi)*d3q_factor/(2._SP*pi)**3
  do i1=1,ng(1)
@@ -62,7 +66,7 @@ subroutine scatter_ModScr(isc,mu)
      if (WF_xc_functional==XC_HYB_GGA_XC_GAUPBE*XC_FACTOR) then 
 !GAUPBE expression for model exchange see: Song et al. J. Chem. Phys. 138, 241101 (2013)
        isc%gamp(i1,i2)= Co*real(exp(-(bare_qpg_true**2)/(4._SP*mu)),SP)
-     else
+     elseif(.not.hyb2d)
 !       isc%gamp(i1,i2)=isc%gamp(i1,i2)*&
 !            &(1._SP-real(exp(-(bare_qpg(iq,ig1)**2)/(4._SP*mu**2)),SP)) 
 !In case of bare potential lim->q=0 4pi/q^2(1-exp(-q^2/4mu^2)=pi/mu^2 this is
@@ -73,6 +77,9 @@ subroutine scatter_ModScr(isc,mu)
        isc%gamp(i1,i2)=isc%gamp(i1,i2)*&
             &(1._SP -real(exp(-(bare_qpg_true**2)/(4._SP*mu**2)),SP)) 
        if (i1==1) isc%gamp(i1,i2)=1._SP/(4._SP*mu**2)*d3q_factor/(2._SP*pi)**3
+     else
+       isc%gamp(i1,i2)=isc%gamp(i1,i2)*QP_hyb_screen(i1,iq)
+       !if (i1==1) isc%gamp(i1,i2)=1._SP/(4._SP*mu**2)*d3q_factor/(2._SP*pi)**3       
      endif
    enddo
  end do

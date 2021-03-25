@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine XCo_driver(E,k,Xk,q)
+subroutine XCo_driver(E,k,Xk,q,Xw)
  !
  use drivers,       ONLY:l_acfdt,l_sc_run,l_real_time,l_gw0
  use pars,          ONLY:schlen,rZERO,SP,cZERO
@@ -40,10 +40,12 @@ subroutine XCo_driver(E,k,Xk,q)
  use global_XC,     ONLY:WF_exx_fraction,WF_exx_screening
  use xc_functionals,ONLY:E_xc_val
  use pseudo,        ONLY:PP_nlcc_free
+ use frequency,      ONLY:w_samp
  !
 #include<memory.h>
  type(levels) ::E       
  type(bz_samp)::k,Xk,q
+ type(w_samp)  ::Xw
  !
  ! WorkSpace
  !
@@ -111,14 +113,14 @@ subroutine XCo_driver(E,k,Xk,q)
    return
    !
  else
-   !
+   !!
    if (l_screen_hyb) then                           
-     call XCo_Hartree_Fock(E,k,xk,q,mode='hyb')    ! For screened hybrids calculate the  model nonlocal screened exchange part
+     call XCo_Hartree_Fock(E,k,xk,Xw,q,mode='hyb')    ! For screened hybrids calculate the  model nonlocal screened exchange part
      QP_Vnl_sex=QP_Vnl_xc                        
      QP_Vnl_xc=cZERO                                
    end if
    !
-   call XCo_Hartree_Fock(E,k,xk,q)
+   call XCo_Hartree_Fock(E,k,xk,Xw,q)
    !
    !
  endif

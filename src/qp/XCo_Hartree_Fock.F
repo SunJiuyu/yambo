@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
+subroutine XCo_Hartree_Fock(E,k,Xk,Xw,q,mode)
  !
  ! Hartree-Fock
  !
@@ -35,7 +35,7 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
 &                        PAR_IND_QP_ID,PAR_IND_Q,PAR_IND_G_b,&
 &                        PAR_IND_Q_ID,n_WF_bands_to_load
  use collision_el,  ONLY:elemental_collision,elemental_collision_free,elemental_collision_alloc
- use QP_m,          ONLY:QP_Vnl_xc,QP_ng_Sx,QP_ng_Vxc,QP_table,QP_nb,QP_n_states
+ use QP_m,          ONLY:QP_Vnl_xc,QP_ng_Sx,QP_ng_Vxc,QP_table,QP_nb,QP_n_states, QP_hyb_screen
  use R_lattice,     ONLY:qindx_S,bz_samp
  use timing_m,      ONLY:timing
  use openmp,        ONLY:OPENMP_update,master_thread,n_threads_SE
@@ -46,12 +46,17 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
  use pseudo,        ONLY:becp, pp_is_uspp
  use qe_pseudo_m,   ONLY:beccopy
  use deviceXlib_m,  ONLY:dev_memcpy
+ ! below for dielectric hybrid
+ use frequency,      ONLY:w_samp 
+ use X_m,          ONLY:X_t
  !
 #include<dev_defs.h>
 #include<memory.h>
  !
  type(levels) ::E       
  type(bz_samp)::k,Xk,q
+ type(X_t)  :: X
+ type(w_samp)  ::Xw
  character(*),optional ::mode
  !
  !Work Space
@@ -66,7 +71,9 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
  !
  integer              :: ig
  integer              :: ikibz,i_sp_pol
-
+ ! I/O
+ !
+ integer           ::io_X_err
  !
  ! Resets & basis setup
  !
@@ -85,6 +92,10 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
  ! QP_table -> report
  !
  call QP_state_extract_print( )
+ !
+ allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
+ QP_hyb_screen=(0.0,0.0)
+ call QP_effective_screen(X,Xw,q,io_X_err)  ! Here Jiuyu call X_mat
  !
  if(.not.l_sc_run .and. .not.l_real_time) then
    !
@@ -158,6 +169,7 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
    call DEV_SUBNAME(scatter_Gamp)(isc,'x')
    !
    if (trim(mode_)=='hyb') call scatter_ModScr(isc,WF_exx_screening)
+   call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
    !
 #if !defined _CUDA
    !$omp do schedule(dynamic)
@@ -173,6 +185,7 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
      if (isc%qs(2)/=isc%iqref) then 
        call DEV_SUBNAME(scatter_Gamp)(isc,'x')
        if (trim(mode_)=='hyb') call scatter_ModScr(isc,WF_exx_screening)
+       call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
      endif
      !
      !  (n,k,sp_n).     

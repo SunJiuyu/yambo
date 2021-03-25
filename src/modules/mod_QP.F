@@ -73,6 +73,7 @@ module QP_m
  real(SP)   ,allocatable:: QP_W_dr(:,:)
  complex(SP),allocatable:: QP_dSc(:,:)
  complex(SP),allocatable:: QP_W(:,:,:,:)
+ complex(SP),allocatable:: QP_hyb_screen(:,:)  !  Jiuyu's hyb2d
  complex(SP),allocatable:: QP_Vnl_xc(:)
  complex(SP),allocatable:: QP_Sc(:,:)
  complex(SP),allocatable:: QP_Vxc(:)
