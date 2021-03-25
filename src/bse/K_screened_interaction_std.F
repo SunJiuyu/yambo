@@ -29,9 +29,11 @@ subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
  use drivers,      ONLY:l_td_hf
  use com,          ONLY:warning,msg
  use collision_el, ONLY:elemental_collision,elemental_collision_free
- use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg
+ use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg,g_vec
  use D_lattice,    ONLY:i_time_rev,i_space_inv
  use X_m,          ONLY:X_alloc,X_t,X_mat
+ use interfaces,    ONLY:LINEAR_ALGEBRA_driver
+ use linear_algebra,ONLY:INV
 #ifdef _CUDA
  use X_m,          ONLY:X_mat_d
 #endif
@@ -57,12 +59,16 @@ subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
  !
  integer    :: BS_W_size2,i_g2,i_g3,iq_W
  logical    :: W_is_em1s,W_is_pp
+ complex(SP), allocatable :: X_inv_test(:,:),BS_W_diag(:),BS_W_diag_inv(:)
+ complex(SP)  :: X_perpen
  !
  ! I/O
  !
  integer           :: XID
  integer, external :: io_X
  ! 
+ open(30,file='out_W.dat')
+ !
  if (l_td_hf) then
    !
    io_X_err=0
@@ -129,6 +135,9 @@ subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
    endif
  endif
  !
+  allocate(BS_W_diag(BS_n_g_W))
+  allocate(BS_W_diag_inv(BS_n_g_W))
+ !
  do iq_W=1,q%nibz
    !
    isc%qs(2)=iq_W
@@ -144,11 +153,40 @@ subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
      endif
      !
      forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
-        if(iq_W.eq.1) call msg('r',"inv epsilon0", real(X_mat(1,1,1)))
-       do i_g2=1,BS_n_g_W
-         call msg('r',"1overQ2 ", real(bare_qpg(iq_W,i_g2)))
-         call msg('r',"inv_eps ", real(X_mat(i_g2,i_g2,1)))
-       enddo
+
+!      if(BS_W_is_diagonal) then
+
+!       allocate(X_inv_test(BS_n_g_W,BS_n_g_W))
+
+!       do i_g3=1,BS_n_g_W
+!         do i_g2=1,BS_n_g_W
+!           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)) ) then !G// diag only
+!       X_inv_test(i_g2,i_g3)=X_mat(i_g2,i_g3,1)
+!	   else
+!	X_inv_test(i_g2,i_g3)=(0.0,0.0)
+!	  endif
+!	 enddo
+!	enddo
+!       call LINEAR_ALGEBRA_driver(INV,M=X_inv_test)
+
+!       do i_g2=1,20
+!         call msg('r',"1overQ2 ", real(bare_qpg(iq_W,i_g2)))
+!         call msg('r',"inv_eps ", real(X_mat(i_g2,i_g2,1)))
+!         call msg('r',"eps: ", 1._SP/real(X_inv_test(i_g2,i_g2)))
+!	do i_g3=1,i_g2-1
+!	  
+!	enddo
+ !      enddo
+
+ !      forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1) = 1._SP/X_inv_test(i_g2,i_g2)
+ !      deallocate(X_inv_test)
+ !     endif
+
+!        if(iq_W.eq.1) call msg('r',"inv epsilon0", real(X_mat(1,1,1)))
+!       do i_g2=1,BS_n_g_W
+!         call msg('r',"1overQ2 ", real(bare_qpg(iq_W,i_g2)))
+!         call msg('r',"inv_eps ", real(X_mat(i_g2,i_g2,1)))
+!       enddo
      !
 #ifdef _CUDA
      ! device <- host transfer
@@ -177,10 +215,39 @@ subroutine K_screened_interaction_std(X,Xw,q,io_X_err)
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=real(X_mat(i_g2,i_g2,1),SP)*isc%gamp(i_g2,1)
      else if (.not.BS_W_is_diagonal) then
        do i_g3=1,BS_n_g_W
+!
+          BS_W_diag(i_g3) = (0.0,0.0)
+	  BS_W_diag_inv(i_g3) = (0.0,0.0)
+!
          do i_g2=1,BS_n_g_W
+           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)) ) then !G// diag only
+!	call msg('r','G counted')
            BS_W(i_g2,i_g3,iq_W)=X_mat(i_g2,i_g3,1)*isc%gamp(i_g2,i_g3)
-           if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g2,i_g3,q%nibz+iq_W)=X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
+!
+          BS_W_diag(i_g3) = BS_W_diag(i_g3)+BS_W(i_g2,i_g3,iq_W)
+
+	BS_W(i_g2,i_g3,iq_W) = (0.0,0.0)
+!	   if(g_vec(i_g2,3).ne.g_vec(i_g3,3)) then
+!		X_perpen=(X_mat(i_g3,i_g3,1)-1._SP)*(X_mat(i_g2,i_g2,1)-1._SP)/(real(X_mat(i_g2,i_g3,1))**2+aimag(X_mat(i_g2,i_g3,1))**2 )
+!		call msg('r','X_perpen: ',real(X_perpen))
+
+!           endif
+           if (i_space_inv==0.and.i_time_rev==1) then
+ 	     BS_W(i_g2,i_g3,q%nibz+iq_W)= X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
+	     BS_W_diag_inv(i_g3) = BS_W(i_g2,i_g3,q%nibz+iq_W) +BS_W_diag_inv(i_g3)
+	     BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0) 
+	   endif
+	else
+!        call msg('r','Gp counted')
+	BS_W(i_g2,i_g3,iq_W)=(0.0,0.0)
+           if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0)
+           endif  !line 205
          enddo
+!
+!	write(30,*) iq_W, i_g3, real(bare_qpg(iq_W,i_g3)), real(BS_W(i_g3,i_g3,iq_W)), real(BS_W_diag(i_g3))
+	BS_W(i_g3,i_g3,iq_W) = BS_W_diag(i_g3)
+	if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g3,i_g3,q%nibz+iq_W) = BS_W_diag_inv(i_g3)
+!
        enddo
      endif
 #endif
