@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine XCo_driver(E,k,Xk,q,Xw)
+subroutine XCo_driver(X,E,k,Xk,q,XwQP)
  !
  use drivers,       ONLY:l_acfdt,l_sc_run,l_real_time,l_gw0
  use pars,          ONLY:schlen,rZERO,SP,cZERO
@@ -40,12 +40,16 @@ subroutine XCo_driver(E,k,Xk,q,Xw)
  use global_XC,     ONLY:WF_exx_fraction,WF_exx_screening
  use xc_functionals,ONLY:E_xc_val
  use pseudo,        ONLY:PP_nlcc_free
- use frequency,      ONLY:w_samp
+ use frequency,     ONLY:w_samp
+ use X_m,   ONLY:X_t
  !
 #include<memory.h>
+
+ !
  type(levels) ::E       
- type(bz_samp)::k,Xk,q
- type(w_samp)  ::Xw
+ type(bz_samp) ::k,Xk
+ type(bz_samp) :: q
+ type(w_samp) :: XwQP
  !
  ! WorkSpace
  !
@@ -62,10 +66,11 @@ subroutine XCo_driver(E,k,Xk,q,Xw)
  character(schlen) ::sec_mode_and_message(2),ch,ch_spin,nloc_fmt,loc_fmt
  logical           ::l_local
  type(QP_t)        ::qp
+ type(X_t)     ::X
  !
  ! IO
  !
- integer           :: ID,io_err
+ integer           :: ID,io_err,io_X_err
  integer, external :: io_HF_and_locXC
  !
  ! Section
@@ -113,14 +118,16 @@ subroutine XCo_driver(E,k,Xk,q,Xw)
    return
    !
  else
-   !!
+   !
    if (l_screen_hyb) then                           
-     call XCo_Hartree_Fock(E,k,xk,Xw,q,mode='hyb')    ! For screened hybrids calculate the  model nonlocal screened exchange part
+     call XCo_Hartree_Fock(E,k,Xk,q,mode='hyb') 
+   ! For screened hybrids calculate the  model nonlocal screened exchange part
      QP_Vnl_sex=QP_Vnl_xc                        
      QP_Vnl_xc=cZERO                                
    end if
    !
-   call XCo_Hartree_Fock(E,k,xk,Xw,q)
+   call QP_effective_screen(X,XwQP,q,io_X_err)  ! Here Jiuyu call X_mat
+   call XCo_Hartree_Fock(E,k,Xk,q)
    !
    !
  endif

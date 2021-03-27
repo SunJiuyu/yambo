@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine XCo_Hartree_Fock(E,k,Xk,Xw,q,mode)
+subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
  !
  ! Hartree-Fock
  !
@@ -46,17 +46,12 @@ subroutine XCo_Hartree_Fock(E,k,Xk,Xw,q,mode)
  use pseudo,        ONLY:becp, pp_is_uspp
  use qe_pseudo_m,   ONLY:beccopy
  use deviceXlib_m,  ONLY:dev_memcpy
- ! below for dielectric hybrid
- use frequency,      ONLY:w_samp 
- use X_m,          ONLY:X_t
  !
 #include<dev_defs.h>
 #include<memory.h>
  !
  type(levels) ::E       
  type(bz_samp)::k,Xk,q
- type(X_t)  :: X
- type(w_samp)  ::Xw
  character(*),optional ::mode
  !
  !Work Space
@@ -93,9 +88,9 @@ subroutine XCo_Hartree_Fock(E,k,Xk,Xw,q,mode)
  !
  call QP_state_extract_print( )
  !
- allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
- QP_hyb_screen=(0.0,0.0)
- call QP_effective_screen(X,Xw,q,io_X_err)  ! Here Jiuyu call X_mat
+! allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
+! QP_hyb_screen=(0.0,0.0)
+! call QP_effective_screen(XwHyb,q,io_X_err)  ! Here Jiuyu call X_mat
  !
  if(.not.l_sc_run .and. .not.l_real_time) then
    !

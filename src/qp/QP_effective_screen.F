@@ -27,7 +27,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  use stderr,       ONLY:intc
  use frequency,    ONLY:w_samp
  use drivers,      ONLY:l_td_hf
- use com,          ONLY:warning,msg
+ use com,          ONLY:warning,msg,error
  use collision_el, ONLY:elemental_collision,elemental_collision_free
  use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg
  use D_lattice,    ONLY:i_time_rev,i_space_inv
@@ -55,7 +55,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  !
  ! I/O
  !
- integer           :: XID
+ integer           :: ID
  integer, external :: io_X
  ! 
  if (l_td_hf) then
@@ -70,11 +70,13 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
    ! X%ng are the G's in the X DB while BS_n_g_W the G's I want to read.
    ! Now to read only BS_n_g_W components I need to redefine X%ng
    !
+   allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
+   QP_hyb_screen=(0.0,0.0)
    X%ng=QP_ng_Sx
-   call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=XID)
-   io_X_err=io_X(X,Xw,XID) 
+   call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID)
+   io_X_err=io_X(X,Xw,ID) 
    !
-   if(io_X_err<0) return
+   if(io_X_err<0) call error('Incomplete and/or broken PPA/Static diel. fun. database')
    !
    ! X%ng is set to BS_n_g_W to VERIFY if there are enough bands.
    ! From now on it is used to keep track of the actual sixe of W in the DB
@@ -105,17 +107,17 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  ! when the TR is applied
  !
  if (i_space_inv==0.and.i_time_rev==1) then
-   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,QP_W_size2,2*q%nibz))
+   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,2*q%nibz))
  else
-   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,QP_W_size2,q%nibz))
+   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
  endif
  !
  YAMBO_ALLOC(isc%gamp,(QP_ng_Sx,QP_W_size2))
 
  !
  if (.not.l_td_hf) then
-   call io_control(ACTION=OP_RD,COM=NONE,SEC=(/1/),ID=XID)
-   io_X_err=io_X(X,Xw,XID)
+   call io_control(ACTION=OP_RD,COM=NONE,SEC=(/1/),ID=ID)
+   io_X_err=io_X(X,Xw,ID)
    if (io_X_err<0) then
      call warning('Reading of io_X heared failed depite previous check.')
      return
@@ -128,8 +130,8 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
    call DEV_SUBNAME(scatter_Gamp)(isc,'c')
    !
      !
-     call io_control(ACTION=RD_CL_IF_END,COM=NONE,SEC=(/2*iq_W,2*iq_W+1/),ID=XID)
-     io_X_err=io_X(X,Xw,XID)
+     call io_control(ACTION=RD_CL_IF_END,COM=NONE,SEC=(/2*iq_W,2*iq_W+1/),ID=ID)
+     io_X_err=io_X(X,Xw,ID)
      if (io_X_err<0) then
        call warning('Reading of io_X for iq='//trim(intc(iq_W))//' failed depite previous check.')
        return
