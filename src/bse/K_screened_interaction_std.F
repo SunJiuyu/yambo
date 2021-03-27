@@ -137,8 +137,8 @@ call elemental_collision_free(isc_test)
    endif
  endif
  !
-  allocate(BS_W_diag(BS_n_g_W))
-  allocate(BS_W_diag_inv(BS_n_g_W))
+!  allocate(BS_W_diag(BS_n_g_W))
+!  allocate(BS_W_diag_inv(BS_n_g_W))
  !
  do iq_W=1,q%nibz
    !
@@ -157,20 +157,21 @@ call elemental_collision_free(isc_test)
      !
      forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
 
-      if(BS_W_is_diagonal) then
+     if(BS_W_is_diagonal) then
 
-       allocate(X_inv_test(BS_n_g_W,BS_n_g_W))
+      allocate(X_inv_test(BS_n_g_W,BS_n_g_W))
 
-       do i_g3=1,BS_n_g_W
-         do i_g2=1,BS_n_g_W
-           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)).and.i_g2.ne.i_g3 ) then !G// diag only
-       X_inv_test(i_g2,i_g3)=X_mat(i_g2,i_g3,1)/bare_qpg(iq_W,i_g2)*bare_qpg(iq_W,i_g3)
-	   else
-	X_inv_test(i_g2,i_g3)=(0.0,0.0)
-	  endif
-	X_mat(i_g3,i_g3,1)=X_mat(i_g3,i_g3,1)+X_inv_test(i_g2,i_g3)
-	 enddo
-	enddo
+      do i_g3=1,BS_n_g_W
+        do i_g2=1,BS_n_g_W
+          if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)).and.i_g2.ne.i_g3 ) then !G// diag only
+            X_inv_test(i_g2,i_g3)=X_mat(i_g2,i_g3,1) &
+          &  /bare_qpg(iq_W,i_g2)*bare_qpg(iq_W,i_g3)
+          else
+            X_inv_test(i_g2,i_g3)=(0.0,0.0)
+          endif
+            X_mat(i_g3,i_g3,1)=X_mat(i_g3,i_g3,1)+X_inv_test(i_g2,i_g3)
+       enddo
+      enddo
 !       call LINEAR_ALGEBRA_driver(INV,M=X_inv_test)
 
 !       do i_g2=1,20
@@ -217,60 +218,35 @@ call elemental_collision_free(isc_test)
 #else
      if (BS_W_is_diagonal) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=real(X_mat(i_g2,i_g2,1),SP)*isc%gamp(i_g2,1)
-!       do i_g3=1,BS_n_g_W
-!
-!          BS_W_diag(i_g3) = (0.0,0.0)
-!
-!         do i_g2=1,BS_n_g_W
-!           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)) ) then !G// diag only
-!       call msg('r','G counted')
-!           BS_W(i_g2,i_g3,iq_W)=X_mat(i_g2,i_g3,1)*isc%gamp(i_g2,i_g3)
-!
-!          BS_W_diag(i_g3) = BS_W_diag(i_g3)+real(X_mat(i_g2,i_g3,1))*isc_test%gamp(i_g2,i_g3)
-
-!          endif !G// only
-!         enddo
-!
-!      BS_W(i_g3,1,iq_W) = BS_W_diag(i_g3)
-!       write(30,*) iq_W, i_g3, real(bare_qpg(iq_W,i_g3)), real(BS_W(i_g3,1,iq_W)), real(BS_W_diag(i_g3))
-!        BS_W(i_g3,1,iq_W) = BS_W_diag(i_g3)
-!
-!       enddo
 
      else if (.not.BS_W_is_diagonal) then
        do i_g3=1,BS_n_g_W
 !
-          BS_W_diag(i_g3) = (0.0,0.0)
-	  BS_W_diag_inv(i_g3) = (0.0,0.0)
+!          BS_W_diag(i_g3) = (0.0,0.0)
+!     BS_W_diag_inv(i_g3) = (0.0,0.0)
 !
          do i_g2=1,BS_n_g_W
-           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)) ) then !G// diag only
-!	call msg('r','G counted')
+!           if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)) ) then !G// diag only
            BS_W(i_g2,i_g3,iq_W)=X_mat(i_g2,i_g3,1)*isc%gamp(i_g2,i_g3)
 !
-          BS_W_diag(i_g3) = BS_W_diag(i_g3)+BS_W(i_g2,i_g3,iq_W)
+!          BS_W_diag(i_g3) = BS_W_diag(i_g3)+BS_W(i_g2,i_g3,iq_W)
+!   BS_W(i_g2,i_g3,iq_W) = (0.0,0.0)
 
-	BS_W(i_g2,i_g3,iq_W) = (0.0,0.0)
-!	   if(g_vec(i_g2,3).ne.g_vec(i_g3,3)) then
-!		X_perpen=(X_mat(i_g3,i_g3,1)-1._SP)*(X_mat(i_g2,i_g2,1)-1._SP)/(real(X_mat(i_g2,i_g3,1))**2+aimag(X_mat(i_g2,i_g3,1))**2 )
-!		call msg('r','X_perpen: ',real(X_perpen))
-
-!           endif
            if (i_space_inv==0.and.i_time_rev==1) then
- 	     BS_W(i_g2,i_g3,q%nibz+iq_W)= X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
-	     BS_W_diag_inv(i_g3) = BS_W(i_g2,i_g3,q%nibz+iq_W) +BS_W_diag_inv(i_g3)
-	     BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0) 
-	   endif
-	else
+       BS_W(i_g2,i_g3,q%nibz+iq_W)= X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
+!       BS_W_diag_inv(i_g3) = BS_W(i_g2,i_g3,q%nibz+iq_W) +BS_W_diag_inv(i_g3)
+!       BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0) 
+           endif
+!  else
 !        call msg('r','Gp counted')
-	BS_W(i_g2,i_g3,iq_W)=(0.0,0.0)
-           if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0)
-           endif  !G// only
+!   BS_W(i_g2,i_g3,iq_W)=(0.0,0.0)
+!           if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g2,i_g3,q%nibz+iq_W)=(0.0,0.0)
+!           endif  !G// only
          enddo
 !
-	write(30,*) iq_W, i_g3, real(bare_qpg(iq_W,i_g3)), real(BS_W(i_g3,i_g3,iq_W)), real(BS_W_diag(i_g3))
-	BS_W(i_g3,i_g3,iq_W) = BS_W_diag(i_g3)
-	if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g3,i_g3,q%nibz+iq_W) = BS_W_diag_inv(i_g3)
+!    write(30,*) iq_W, i_g3, real(bare_qpg(iq_W,i_g3)), real(BS_W(i_g3,i_g3,iq_W)), real(BS_W_diag(i_g3))
+!    BS_W(i_g3,i_g3,iq_W) = BS_W_diag(i_g3)
+!    if (i_space_inv==0.and.i_time_rev==1) BS_W(i_g3,i_g3,q%nibz+iq_W) = BS_W_diag_inv(i_g3)
 !
        enddo
      endif
