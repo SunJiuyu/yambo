@@ -173,6 +173,10 @@ subroutine XCo_Hartree_Fock(E,k,Xk,q,mode)
      iq_ibz=q%sstar(iq,1)
      is_ibz=q%sstar(iq,2)
      !
+!     iq_ibz=isc%qs(2)
+!     if(iq.ne.iq_ibz) QP_hyb_screen(:,iq) = QP_hyb_screen(:,iq_ibz)	
+!	call msg('r','QP_hyb_screen:', real(QP_hyb_screen(1,iq)))
+     !
      if (.not.PAR_IND_Q%element_1D(iq_ibz)) cycle
      !
      isc%qs(2:)=(/iq_ibz,is_ibz/)

@@ -29,7 +29,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  use drivers,      ONLY:l_td_hf
  use com,          ONLY:warning,msg,error
  use collision_el, ONLY:elemental_collision,elemental_collision_free
- use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg
+ use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg,g_vec
  use D_lattice,    ONLY:i_time_rev,i_space_inv
  use X_m,          ONLY:X_alloc,X_t,X_mat
  use QP_m,         ONLY:QP_hyb_screen,QP_ng_Sx
@@ -106,11 +106,11 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  ! When TR is present but not the SI X_mat indexes need to be exchanged 
  ! when the TR is applied
  !
- if (i_space_inv==0.and.i_time_rev==1) then
-   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,2*q%nibz))
- else
-   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
- endif
+! if (i_space_inv==0.and.i_time_rev==1) then
+!   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,2*q%nibz))
+! else
+!   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
+! endif
  !
  YAMBO_ALLOC(isc%gamp,(QP_ng_Sx,QP_W_size2))
 
@@ -142,12 +142,14 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
      !
      ! effecitve sum-over W_bar
      do i_g3=1,QP_ng_Sx
-      QP_hyb_screen(i_g3,iq_W) = (0.0, 0.0)
+      QP_hyb_screen(i_g3,iq_W) = X_mat(i_g3,i_g3,1)
        do i_g2=1,QP_ng_Sx
-         QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W) + X_mat(i_g2,i_g3,1)*isc%gamp(i_g2,i_g3)
+         if(i_g2.ne.i_g3 ) then !G// diag only
+         QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W) + X_mat(i_g2,i_g3,1)/bare_qpg(iq_W,i_g2)*bare_qpg(iq_W,i_g3)
 !         if (i_space_inv==0.and.i_time_rev==1) QP_hyb_screen(i_g3,q%nibz+iq_W)=QP_hyb_screen(i_g3,q%nibz+iq_W) +X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
+	endif
        enddo
-       QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W)/isc%gamp(i_g3,1)
+!       QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W)/isc%gamp(i_g3,1)
        if (i_space_inv==0.and.i_time_rev==1) QP_hyb_screen(i_g3,iq_W+q%nibz)=QP_hyb_screen(i_g3,iq_W)
      enddo
      !

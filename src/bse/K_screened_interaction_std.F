@@ -163,7 +163,8 @@ call elemental_collision_free(isc_test)
 
       do i_g3=1,BS_n_g_W
         do i_g2=1,BS_n_g_W
-          if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)).and.i_g2.ne.i_g3 ) then !G// diag only
+!          if((g_vec(i_g2,1)==g_vec(i_g3,1) .and. g_vec(i_g2,2)==g_vec(i_g3,2)).and.i_g2.ne.i_g3 ) then !G// diag only
+          if(i_g3.ne.i_g2) then ! all G off-diag
             X_inv_test(i_g2,i_g3)=X_mat(i_g2,i_g3,1) &
           &  /bare_qpg(iq_W,i_g2)*bare_qpg(iq_W,i_g3)
           else

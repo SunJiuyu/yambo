@@ -33,7 +33,7 @@ subroutine scatter_ModScr(isc,mu)
  use xc_functionals,ONLY:XC_HYB_GGA_XC_GAUPBE,XC_FACTOR
  use X_m,           ONLY:X_alloc,X_t,X_mat
  use QP_m,          ONLY:QP_hyb_screen
-
+ use com,           ONLY:msg
  !
  implicit none
  !
@@ -51,6 +51,8 @@ subroutine scatter_ModScr(isc,mu)
  ng=shape(isc%gamp)
  hyb2d = .true.
  !
+ call msg('r','QP_hyb_screen: ',real(QP_hyb_screen(1,iq)))
+
  Co=(pi/mu)**(3._SP/2._SP)/(4._SP*pi)*d3q_factor/(2._SP*pi)**3
  do i1=1,ng(1)
    do i2=1,ng(2)

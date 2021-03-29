@@ -25,12 +25,12 @@ subroutine XCo_local(E,Xk)
  !
  ! Local V_xc
  !
- use pars,          ONLY:SP,pi
- use com,           ONLY:error
+ use pars,          ONLY:SP,pi,DP
+ use com,           ONLY:error,msg
  use electrons,     ONLY:levels,n_spin,n_spinor,spin
- use QP_m,          ONLY:QP_Vxc,QP_n_states,QP_table
+ use QP_m,          ONLY:QP_Vxc,QP_n_states,QP_table,QP_hyb_screen,QP_ng_Sx
  use R_lattice,     ONLY:bz_samp
- use FFT_m,         ONLY:fft_size
+ use FFT_m,         ONLY:fft_size,fft_dim,fftw_plan,fft_g_table
  use wave_func,     ONLY:WF
  use xc_functionals,ONLY:E_xc,V_xc,xc_string,XC_potential_driver,magn,XC_potential_driver,Vxc_separate ,Vxc_x, Vxc_c ! Jiuyu separately count x and c
  use global_XC,     ONLY:WF_kind,WF_xc_functional,WF_exx_fraction,WF_exx_screening
@@ -58,20 +58,25 @@ subroutine XCo_local(E,Xk)
 #if defined _RT
  integer     ::nb
 #endif
- integer     ::i1,ifft,iwf,iwfp,ib,ibp,ik,i_sp_pol
+ integer     ::i1,ifft,iwf,iwfp,ib,ibp,ik,i_sp_pol,ig
  real(SP)    ::E_xc_
  complex(SP) ::c_ws(fft_size,n_spinor)
  complex(SP),allocatable ::  xcx_ws(:,:),xcc_ws(:,:)
+ complex(DP),allocatable ::  QP_hyb_screenAUX(:)
+ real(SP),allocatable :: QP_hyb_screenR(:)
  !
  ! Spin support (collinear and not collinear)
  !
  complex(SP), allocatable :: V_xc_mat(:,:,:)
  !
+ logical :: hyb2D
+ !
  call timing('XCo_local',OPR="start")
  !
  ! Allocation 
  !
- Vxc_separate = .false.
+ hyb2D = .true.
+ Vxc_separate = .true.
    if(Vxc_separate) then
    allocate(Vxc_x(fft_size,n_spin))
    allocate(Vxc_c(fft_size,n_spin))
@@ -87,6 +92,8 @@ subroutine XCo_local(E,Xk)
  if (.not.allocated(magn)) then
    YAMBO_ALLOC(magn,(fft_size,3))
  endif
+ !
+ if(hyb2D)  allocate(QP_hyb_screenR(fft_size))
  !
  ! Precompiler options in case a non-DFT potential is required
  !
@@ -135,6 +142,29 @@ subroutine XCo_local(E,Xk)
      endif
 #endif
      !
+ if(hyb2D) then
+   allocate(QP_hyb_screenAUX(fft_size))
+   QP_hyb_screenR=0.0
+   QP_hyb_screenAUX=(0.0,0.0)
+   do ig=1,QP_ng_Sx
+     QP_hyb_screenR(ig) = 1._SP-real(QP_hyb_screen(ig,1))
+     QP_hyb_screenAUX(fft_g_table(ig,1))=cmplx(real(QP_hyb_screenR(ig),DP), 0._DP)
+   enddo
+    ! do FT to R-space
+#if defined _FFTW
+     call dfftw_destroy_plan(fftw_plan)
+     fftw_plan = 0
+     call fft_3d(QP_hyb_screenAUX/real(fft_size,DP),fft_dim,1,fftw_plan)
+#else
+     call fft_3d(QP_hyb_screenAUX/real(fft_size,DP),fft_dim,1)
+#endif
+     QP_hyb_screenR(:) = real(QP_hyb_screenAUX(:),SP)
+     do ifft=1,fft_size
+       call msg('r','QP_hyb_screenR: ',QP_hyb_screenR(ifft))
+!            call msg('r','BS_hybrd_frac/fft_size: ',BS_hybrd_frac(i_g2)/fft_size)
+     enddo
+     deallocate( QP_hyb_screenAUX )
+ endif
      ! <iwf|V_xc|iwfp>
      !
      iwf =WF%index(ib,ik,1)
@@ -142,12 +172,12 @@ subroutine XCo_local(E,Xk)
      ! 
 !$omp parallel do default(shared), private(ifft)
      do ifft=1,fft_size
-       c_ws(ifft,1)=V_xc(ifft,1)*WF%c(ifft,1,iwfp)
        if(Vxc_separate) then
-!        V_xc(ifft,1) = Vxc_x(ifft,1) + Vxc_c(ifft,1)
+        V_xc(ifft,1) = Vxc_x(ifft,1)*QP_hyb_screenR(ifft)+Vxc_c(ifft,1)
  !        xcx_ws(ifft,1)=Vxc_x(ifft,1)*WF%c(ifft,1,iwfp)
-         xcc_ws(ifft,1)=Vxc_c(ifft,1)*WF%c(ifft,1,iwfp)
+ !        xcc_ws(ifft,1)=Vxc_c(ifft,1)*WF%c(ifft,1,iwfp)
        endif
+       c_ws(ifft,1)=V_xc(ifft,1)*WF%c(ifft,1,iwfp)
      enddo
 !$omp end parallel do
      !
@@ -168,6 +198,8 @@ subroutine XCo_local(E,Xk)
    return
    !
  endif
+
+ if(hyb2D)  deallocate(QP_hyb_screenR)
  !
 #if defined _RT
  nb=H_ref_bands(2)-H_ref_bands(1)+1
