@@ -32,7 +32,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  use R_lattice,    ONLY:bz_samp,RIM_qpg,RIM_anisotropy,bare_qpg,g_vec
  use D_lattice,    ONLY:i_time_rev,i_space_inv
  use X_m,          ONLY:X_alloc,X_t,X_mat
- use QP_m,         ONLY:QP_hyb_screen,QP_ng_Sx
+ use QP_m,         ONLY:QP_hyb_screen,QP_ng_Sx,QP_ng_Sex
 #ifdef _CUDA
  use X_m,          ONLY:X_mat_d
 #endif
@@ -70,9 +70,13 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
    ! X%ng are the G's in the X DB while BS_n_g_W the G's I want to read.
    ! Now to read only BS_n_g_W components I need to redefine X%ng
    !
+   if(QP_ng_Sx.lt.QP_ng_Sex) then
+    QP_ng_Sex = QP_ng_Sx
+    call msg('r','[warning] Re-setting G_Sex=',QP_ng_Sx)
+   endif
    allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
-   QP_hyb_screen=(0.0,0.0)
-   X%ng=QP_ng_Sx
+   QP_hyb_screen=(1._SP,0._SP)
+   X%ng=QP_ng_Sex
    call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID)
    io_X_err=io_X(X,Xw,ID) 
    !
@@ -87,7 +91,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  !
  call elemental_collision_free(isc)
  !
- X%ng=QP_ng_Sx
+ X%ng=QP_ng_Sex
  if (.not.l_td_hf) then
    !
    ! PP/Epsm1S DBs
@@ -95,12 +99,12 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
    QP_W_em1s=X%whoami==2
    QP_W_pp  =X%whoami==4
    !
-   if (QP_W_em1s) call X_alloc('X',(/QP_ng_Sx,QP_ng_Sx,1/))
-   if (QP_W_pp)   call X_alloc('X',(/QP_ng_Sx,QP_ng_Sx,2/))
+   if (QP_W_em1s) call X_alloc('X',(/QP_ng_Sex,QP_ng_Sex,1/))
+   if (QP_W_pp)   call X_alloc('X',(/QP_ng_Sex,QP_ng_Sex,2/))
    !
  endif
  !
- QP_W_size2=QP_ng_Sx
+ QP_W_size2=QP_ng_Sex
  !if (BS_W_is_diagonal) BS_W_size2=1
  !
  ! When TR is present but not the SI X_mat indexes need to be exchanged 
@@ -112,7 +116,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
 !   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
 ! endif
  !
- YAMBO_ALLOC(isc%gamp,(QP_ng_Sx,QP_W_size2))
+ YAMBO_ALLOC(isc%gamp,(QP_ng_Sex,QP_W_size2))
 
  !
  if (.not.l_td_hf) then
@@ -137,17 +141,17 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
        return
      endif
      !
-     forall(i_g2=1:QP_ng_Sx) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+     forall(i_g2=1:QP_ng_Sex) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
         if(iq_W.eq.1) call msg('r',"inv epsilon0", real(X_mat(1,1,1)))
      !
      ! effecitve sum-over W_bar
-     do i_g3=1,QP_ng_Sx
+     do i_g3=1,QP_ng_Sex
       QP_hyb_screen(i_g3,iq_W) = X_mat(i_g3,i_g3,1)
-       do i_g2=1,QP_ng_Sx
+       do i_g2=1,QP_ng_Sex
          if(i_g2.ne.i_g3 ) then !G// diag only
          QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W) + X_mat(i_g2,i_g3,1)/bare_qpg(iq_W,i_g2)*bare_qpg(iq_W,i_g3)
 !         if (i_space_inv==0.and.i_time_rev==1) QP_hyb_screen(i_g3,q%nibz+iq_W)=QP_hyb_screen(i_g3,q%nibz+iq_W) +X_mat(i_g3,i_g2,1)*isc%gamp(i_g2,i_g3)
-	endif
+         endif
        enddo
 !       QP_hyb_screen(i_g3,iq_W)=QP_hyb_screen(i_g3,iq_W)/isc%gamp(i_g3,1)
        if (i_space_inv==0.and.i_time_rev==1) QP_hyb_screen(i_g3,iq_W+q%nibz)=QP_hyb_screen(i_g3,iq_W)

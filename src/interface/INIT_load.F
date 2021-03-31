@@ -37,7 +37,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  use com,           ONLY:grid_paths
  use stderr,        ONLY:slash
  use QP_m,          ONLY:QP_cg_percent,QP_G_damp,QP_solver,&
-&                        QP_n_G_bands,QP_ng_Sx,QP_ng_Sc,QP_ng_SH,QP_ng_Vxc,GW_terminator_E,GW_terminator_Kind,&
+&                        QP_n_G_bands,QP_ng_Sx,QP_ng_Sex,QP_ng_Sc,QP_ng_SH,QP_ng_Vxc,GW_terminator_E,GW_terminator_Kind,&
 &                        QP_G_er,QP_G_dr,QP_Sc_steps,GWo_iterations,&
 &                        QP_dSc_delta,QP_G_Zoom_treshold,GF_energy_range_mode
  use LIVE_t,        ONLY:nhash
@@ -128,6 +128,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it('r',defs,'em1d',    '[R Xd] Dynamical Inverse Dielectric Matrix')
  call it('r',defs,'ppa',     '[R Xp] Plasmon Pole Approximation')
  call it('r',defs,'HF_and_locXC',   '[R XX] Hartree-Fock Self-energy and Vxc')
+ call it('r',defs,'hybridQP',   '[R XX] Hybrid Functional QP energy levels') 
  call it('r',defs,'gw0',     '[R GW] GoWo Quasiparticle energy levels')
  call it('r',defs,'life',    '[R GW] GoWo Quasiparticle lifetimes')
  call it('r',defs,'rim_cut', '[R RIM CUT] Coulomb potential')
@@ -221,6 +222,7 @@ subroutine INIT_load(defs,en,q,k,X,Xw,Dip)
  call it(defs,'LifeTrCG', '[GW] [o/o] Lifetime transition reduction',QP_cg_percent)
  call it(defs,'HARRLvcs', '[HA] Hartree     RL components',QP_ng_SH,G_unit)
  call it(defs,'EXXRLvcs', '[XX] Exchange    RL components',QP_ng_Sx,G_unit)
+ call it(defs,'SEXRLvcs', '[XX] Screened Exchange    RL components',QP_ng_Sex,G_unit)
  call it('f',defs,'UseNLCC',  '[XC] If present, add NLCC contributions to the charge density ',verb_level=V_qp)
  call it(defs,'VXCRLvcs', '[XC] XCpotential RL components',QP_ng_Vxc,G_unit)
  call it(defs,'CORRLvcs', '[GW] Correlation RL components',QP_ng_Sc,G_unit)

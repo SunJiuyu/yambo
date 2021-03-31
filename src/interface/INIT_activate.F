@@ -27,7 +27,7 @@ subroutine INIT_activate()
  use BS_solvers,     ONLY:BSS_mode
  use QP_m,           ONLY:QP_solver,COHSEX_use_empties
  use stderr,         ONLY:intc
- use drivers,        ONLY:l_em1s,l_acfdt,l_HF_and_locXC,l_col_cut,l_alda_fxc,l_bs_fxc,l_optics,l_bse,l_bss,&
+ use drivers,        ONLY:l_em1s,l_acfdt,l_HF_and_locXC,l_qp_hyb,l_col_cut,l_alda_fxc,l_bs_fxc,l_optics,l_bse,l_bss,&
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hf,l_setup,l_sc_run,l_rim,&
 &                         l_real_time,l_ppa,l_lrc_fxc,l_dual_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
@@ -81,7 +81,7 @@ subroutine INIT_activate()
    call CPU_activate("X_q")  ! Required for finite E-field, l_sc_exx, SC_up_W_iter
  endif
  !
- if ( (l_HF_and_locXC.or.l_gw0.or.l_cohsex.or.l_life) .and. .not.(l_sc_run.or.l_eval_collisions) ) then
+ if ( (l_HF_and_locXC.or.l_gw0.or.l_cohsex.or.l_life.or.l_qp_hyb) .and. .not.(l_sc_run.or.l_eval_collisions) ) then
    call CPU_activate("SE")
    call initactivate(1,'SE_Threads')
  endif
@@ -135,8 +135,9 @@ subroutine INIT_activate()
  !
  !XX
  !
- if (l_HF_and_locXC) call initactivate(1,'EXXRLvcs VXCRLvcs')  
- if (l_HF_and_locXC) call initactivate(1,'UseNLCC')  
+ if (l_HF_and_locXC.or.l_qp_hyb) call initactivate(1,'EXXRLvcs VXCRLvcs')
+ if (l_qp_hyb) call initactivate(1,'SEXRLvcs')
+ if (l_HF_and_locXC.or.l_qp_hyb) call initactivate(1,'UseNLCC')  
  !
  ! Kernels
  !

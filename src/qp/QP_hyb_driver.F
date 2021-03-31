@@ -21,7 +21,7 @@
 ! Software Foundation, Inc., 59 Temple Place - Suite 330,Boston, 
 ! MA 02111-1307, USA or visit http://www.gnu.org/copyleft/gpl.txt.
 !
-subroutine XCo_driver(E,k,Xk,q)
+subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  !
  use drivers,       ONLY:l_acfdt,l_sc_run,l_real_time,l_gw0
  use pars,          ONLY:schlen,rZERO,SP,cZERO
@@ -40,10 +40,16 @@ subroutine XCo_driver(E,k,Xk,q)
  use global_XC,     ONLY:WF_exx_fraction,WF_exx_screening
  use xc_functionals,ONLY:E_xc_val
  use pseudo,        ONLY:PP_nlcc_free
+ use frequency,     ONLY:w_samp
+ use X_m,   ONLY:X_t
  !
 #include<memory.h>
+
+ !
  type(levels) ::E       
- type(bz_samp)::k,Xk,q
+ type(bz_samp) ::k,Xk
+ type(bz_samp) :: q
+ type(w_samp) :: XwQP
  !
  ! WorkSpace
  !
@@ -60,16 +66,17 @@ subroutine XCo_driver(E,k,Xk,q)
  character(schlen) ::sec_mode_and_message(2),ch,ch_spin,nloc_fmt,loc_fmt
  logical           ::l_local
  type(QP_t)        ::qp
+ type(X_t)     ::X
  !
  ! IO
  !
- integer           :: ID,io_err
+ integer           :: ID,io_err,io_X_err
  integer, external :: io_HF_and_locXC
  !
  ! Section
  !
  sec_mode_and_message(1)='*'
- sec_mode_and_message(2)='Bare local and non-local Exchange-Correlation'
+ sec_mode_and_message(2)='Hybrid: Bare local and non-local Exchange-Correlation'
  if (l_acfdt)   sec_mode_and_message(1)='p'
  l_local=.true.
  if(l_local) call section(trim(sec_mode_and_message(1)),trim(sec_mode_and_message(2)))
@@ -112,13 +119,9 @@ subroutine XCo_driver(E,k,Xk,q)
    !
  else
    !
-   if (l_screen_hyb) then                           
-     call XCo_Hartree_Fock(E,k,xk,q,mode='hyb')    ! For screened hybrids calculate the  model nonlocal screened exchange part
-     QP_Vnl_sex=QP_Vnl_xc                        
-     QP_Vnl_xc=cZERO                                
-   end if
    !
-   call XCo_Hartree_Fock(E,k,xk,q)
+   call QP_effective_screen(X,XwQP,q,io_X_err)  ! Here Jiuyu call X_mat
+   call QP_hyb_Exx(E,k,Xk,q)
    !
    !
  endif
@@ -131,7 +134,7 @@ subroutine XCo_driver(E,k,Xk,q)
    !
    call XC_nlcc_setup()
    !
-   call XCo_local(E,Xk)
+   call QP_hyb_local(E,Xk)
 !
    if (.not.l_screen_hyb) then
      QP_Vxc = QP_Vxc + WF_exx_fraction*QP_Vnl_xc !Hybridize...
@@ -151,7 +154,7 @@ subroutine XCo_driver(E,k,Xk,q)
  !
  contains
    !
-   subroutine XCo_report_and_IO()
+   subroutine Hyb_report_and_IO()
      !
      Vxc_kind='DFT'
      !

@@ -42,6 +42,7 @@ module QP_m
  integer           :: QP_n_states
  integer           :: QP_ng_Sc
  integer           :: QP_ng_Sx
+ integer           :: QP_ng_Sex
  integer           :: QP_ng_SH
  integer           :: QP_ng_Vxc
  integer           :: QP_n_G_bands(2)

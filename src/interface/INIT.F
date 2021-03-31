@@ -31,7 +31,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
  !
  use drivers,        ONLY:infile_editing,l_em1s,l_acfdt,l_HF_and_locXC,l_col_cut,l_alda_fxc,l_bs_fxc,l_optics,l_bse,l_bss,&
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hartree,l_tddft,list_dbs,l_td_hf,l_setup,l_sc_run,l_rim,&
-&                         l_real_time,l_ppa,l_lrc_fxc,l_dual_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh_diag,l_W_eh_cpl,l_W_eh,&
+&                         l_real_time,l_qp_hyb,l_ppa,l_lrc_fxc,l_dual_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_W_eh_diag,l_W_eh_cpl,l_W_eh,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
 &                         l_sc_magnetic,l_dipoles,l_pf_fxc,l_nl_optics, &
 &                         l_bsk_sxx, l_bsk_hybrd, l_bsk_model
@@ -227,7 +227,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
  !
  !If qp limits are requested they are added at the end of the input file
  !
- QP_field=any((/l_HF_and_locXC,l_gw0,l_life/)).and..not.l_sc_run
+ QP_field=any((/l_HF_and_locXC,l_gw0,l_life,l_qp_hyb/)).and..not.l_sc_run
  !
  if (QP_field) then
    !
@@ -311,6 +311,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
        l_dipoles=runlevel_is_on('dipoles')
        l_HF_and_locXC=runlevel_is_on('HF_and_locXC')
        l_gw0=runlevel_is_on('gw0')
+       l_qp_hyb=runlevel_is_on('hybridQP')
        l_life=runlevel_is_on('life')
        l_rim=runlevel_is_on('rim_cut')
        l_col_cut=runlevel_is_on('rim_cut')
@@ -454,7 +455,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
        n_threads_X=0
        n_threads_DIP=0
      endif
-     if (l_HF_and_locXC.or.l_gw0.or.l_cohsex.or.l_sc_run) n_threads_SE=0
+     if (l_HF_and_locXC.or.l_gw0.or.l_cohsex.or.l_sc_run.or.l_qp_hyb) n_threads_SE=0
      if (l_real_time)                                     n_threads_RT=0
      if (l_nl_optics)                                     n_threads_NL=0
 #endif

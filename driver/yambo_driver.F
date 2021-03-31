@@ -33,7 +33,7 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  use drivers,       ONLY:l_HF_and_locXC,l_sc_run,l_eval_collisions,l_real_time,&
 &                        l_optics,l_chi,l_em1s,l_ppa,l_bss,l_bse,l_em1d,&
 &                        l_gw0,l_life,l_acfdt,l_dipoles,&
-&                        l_nl_optics
+&                        l_nl_optics,l_qp_hyb
 #if defined _SCALAPACK
  use drivers,       ONLY:l_slk_test
 #endif
@@ -189,9 +189,9 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  ! HARTREE-FOCK AND VXC
  !======================
  !
- driver_now=l_HF_and_locXC.and..not.any((/l_sc_run,l_eval_collisions,l_real_time/))
+ driver_now=l_HF_and_locXC.and..not.any((/l_sc_run,l_eval_collisions,l_real_time,l_qp_hyb/))
  !
- if (driver_now) call XCo_driver(X(i_X_kind),en,k,Xk,q,Xw(i_X_kind))
+ if (driver_now) call XCo_driver(en,k,Xk,q)
  if (driver_now) call mem_manager_report
  !
  ! EXTENDED COLLISIONS 
@@ -210,6 +210,14 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  driver_now=l_gw0.or.l_life
  !
  if (driver_now) call QP_driver(X(i_X_kind),Xen,Xk,en,k,q,Xw(i_X_kind),Dip)
+ if (driver_now) call mem_manager_report
+ !
+ ! SELF-ENERGIES via hybrid density funcional
+ !===============
+ !
+ driver_now=l_qp_hyb.and.l_HF_and_locXC
+ !
+ if (driver_now) call QP_hyb_driver(X(i_X_kind),en,k,Xk,q,Xw(i_X_kind))
  if (driver_now) call mem_manager_report
  !
  ! BETHE-SALPETER

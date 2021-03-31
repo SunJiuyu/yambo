@@ -71,6 +71,7 @@ module drivers
  logical :: l_gw0                =.FALSE.
  logical :: l_ppa                =.FALSE.
  logical :: l_cohsex             =.FALSE.
+ logical :: l_qp_hyb             =.FALSE.
  !
  ! The optical runlevels ...
  !

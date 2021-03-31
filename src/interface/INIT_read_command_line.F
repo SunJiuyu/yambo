@@ -286,6 +286,11 @@ subroutine INIT_read_command_line(rstr,init_)
          infile_editing=.true.
          call initactivate(1,'cohsex gw0') 
          !
+       else if (trim(rstr_piece(i1+1))=='h') then
+         !
+         infile_editing=.true.
+         call initactivate(1,'hybridQP') 
+         !
        endif
        !
      endif
