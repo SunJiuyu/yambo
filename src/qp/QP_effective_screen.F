@@ -74,7 +74,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
     QP_ng_Sex = QP_ng_Sx
     call msg('r','[warning] Re-setting G_Sex=',QP_ng_Sx)
    endif
-   allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
+   allocate(QP_hyb_screen(QP_ng_Sx,q%inbz))
    QP_hyb_screen=(1._SP,0._SP)
    X%ng=QP_ng_Sex
    call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID)
