@@ -74,8 +74,6 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
     QP_ng_Sex = QP_ng_Sx
     call msg('r','[warning] Re-setting G_Sex=',QP_ng_Sx)
    endif
-   allocate(QP_hyb_screen(QP_ng_Sx,q%inbz))
-   QP_hyb_screen=(1._SP,0._SP)
    X%ng=QP_ng_Sex
    call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=ID)
    io_X_err=io_X(X,Xw,ID) 
@@ -110,11 +108,12 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
  ! When TR is present but not the SI X_mat indexes need to be exchanged 
  ! when the TR is applied
  !
-! if (i_space_inv==0.and.i_time_rev==1) then
-!   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,2*q%nibz))
-! else
-!   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
-! endif
+ if (i_space_inv==0.and.i_time_rev==1) then
+   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,2*q%nibz))
+ else
+   YAMBO_ALLOC(QP_hyb_screen,(QP_ng_Sx,q%nibz))
+ endif
+   QP_hyb_screen=(1._SP,0._SP)
  !
  YAMBO_ALLOC(isc%gamp,(QP_ng_Sex,QP_W_size2))
 
@@ -142,7 +141,7 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
      endif
      !
      forall(i_g2=1:QP_ng_Sex) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
-        if(iq_W.eq.1) call msg('r',"inv epsilon0", real(X_mat(1,1,1)))
+       call msg('r',"inv epsilon0", iq_W)
      !
      ! effecitve sum-over W_bar
      do i_g3=1,QP_ng_Sex

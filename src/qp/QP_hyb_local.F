@@ -71,7 +71,7 @@ subroutine QP_hyb_local(E,Xk)
  !
  logical :: hyb2D
  !
- call timing('QP_hyb_local',OPR="start")
+ call timing('XCo_local',OPR="start")
  !
  ! Allocation 
  !

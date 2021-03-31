@@ -79,9 +79,6 @@ subroutine QP_hyb_Exx(E,k,Xk,q,mode)
  Sx_lower_band=1
  Sx_upper_band=E%nbm
  !
- mode_=""
- if (present(mode)) mode_=trim(mode)
- !
  call msg('r', '[VXC] Plane waves :',QP_ng_Vxc)
  call msg('r', '[EXS] Plane waves :',QP_ng_Sx)
  call msg('r', '[SEX] Plane waves :',QP_ng_Sex)
