@@ -52,7 +52,7 @@
   {"HF_and_locXC",  "x","Hartree-Fock Self-energy and local XC",0,0,0,0,0},      
   {"em1d",   "d","Dynamical Inverse Dielectric Matrix",0,0,0,0,0},     
   {"em1s",   "b","Static Inverse Dielectric Matrix",0,0,0,0,0},        
-  {"gwapprx","p","GW approximations [opt=(p)PA/(c)HOSEX]",0,0,1,0,0},              
+  {"gwapprx","p","GW approximations [opt=(p)PA/(c)HOSEX]/(h)ybrid",0,0,1,0,0},              
   {"gw0",    "g","Dyson Equation solver",0,0,1,0,0}, 
   {"DESC",   " ","[opt=(n)ewton/(s)ecant/(g)reen]",0,0,0,0,0},
   {"life",   "l","GoWo Quasiparticle lifetimes",0,0,0,0,0},                  

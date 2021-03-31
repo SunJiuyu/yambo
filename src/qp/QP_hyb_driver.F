@@ -113,7 +113,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  !
  if (io_err==0) then
    !
-   call XCo_report_and_IO()
+   call Hyb_report_and_IO()
    !
    return
    !
@@ -149,7 +149,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  !
  if (.not.l_sc_run)  then
    call WF_free(WF)
-   call XCo_report_and_IO()
+   call Hyb_report_and_IO()
  endif
  !
  contains
