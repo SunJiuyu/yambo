@@ -189,7 +189,7 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  ! HARTREE-FOCK AND VXC
  !======================
  !
- l_qp_hyb = .true.
+ l_qp_hyb=.true.
  driver_now=l_HF_and_locXC.and..not.any((/l_sc_run,l_eval_collisions,l_real_time,l_qp_hyb/))
  !
  if (driver_now) call XCo_driver(en,k,Xk,q)
@@ -197,7 +197,7 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  ! SELF-ENERGIES via hybrid density funcional
  !===============
  !
- driver_now=l_qp_hyb.and.l_HF_and_locXC
+ driver_now=l_qp_hyb.and.l_gw0
  !
  if (driver_now) call QP_hyb_driver(X(i_X_kind),en,k,Xk,q,Xw(i_X_kind))
  if (driver_now) call mem_manager_report
@@ -215,7 +215,7 @@ integer function yambo_driver(np,pid,lnstr,iinf,iind,iod,icd,ijs,instr,inf,ind,o
  ! SELF-ENERGIES
  !===============
  !
- driver_now=l_gw0.or.l_life.and.(.not.l_qp_hyb)
+ driver_now=l_gw0.or.l_life
  !
  if (driver_now) call QP_driver(X(i_X_kind),Xen,Xk,en,k,q,Xw(i_X_kind),Dip)
  if (driver_now) call mem_manager_report

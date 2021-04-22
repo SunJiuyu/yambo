@@ -25,11 +25,11 @@ subroutine QP_newton(X,Xen,Xk,en,k,q,qp,Xw,Dip)
  !
  use pars,          ONLY:SP,cZERO
  use units,         ONLY:HA2EV
- use drivers,       ONLY:l_ppa,l_elel_corr,l_cohsex
+ use drivers,       ONLY:l_ppa,l_elel_corr,l_cohsex,l_qp_hyb
  use com,           ONLY:msg
  use DIPOLES,       ONLY:DIPOLE_t
  use X_m,           ONLY:X_t
- use QP_m,          ONLY:QP_t,QP_dSc_steps,QP_Vnl_xc,QP_Vxc,QP_Sc,&
+ use QP_m,          ONLY:QP_t,QP_dSc_steps,QP_Vnl_xc,QP_Vxc,QP_scr_Vxc,QP_Sc,&
 &                        QP_n_states,QP_dSc,QP_dSc_delta,QP_n_G_bands,&
 &                        GWo_SC_done,GWo_iterations,SC_E_threshold,On_Mass_Shell_approx
  use frequency,     ONLY:w_samp
@@ -71,7 +71,9 @@ subroutine QP_newton(X,Xen,Xk,en,k,q,qp,Xw,Dip)
    if (l_elel_corr) then
      if (l_ppa.or.l_cohsex) then
        !
+       !call QP_hyb_xDFT(Xen,Xk,k)
        call QP_ppa_cohsex(X,Xk,en,k,q,qp,Xw,iter)
+       !
        !
      else 
        !
@@ -121,6 +123,7 @@ subroutine QP_newton(X,Xen,Xk,en,k,q,qp,Xw,Dip)
        ! COHSEX: no energy dependence
        !
        qp%E(i1)=qp%E_bare(i1)+(QP_Sc(i1,1)+QP_Vnl_xc(i1)-QP_Vxc(i1))
+       if(l_qp_hyb) qp%E(i1)=qp%E(i1)+QP_scr_Vxc(i1)
        qp%Z(i1)=1._SP
        !
      endif

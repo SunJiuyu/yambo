@@ -25,7 +25,7 @@ subroutine QP_driver(X,Xen,Xk,en,k,q,Xw,Dip)
  !
  use pars,          ONLY:SP,pi,cONE,cZERO
  use units,         ONLY:HA2EV
- use drivers,       ONLY:l_life,l_ppa,l_elel_corr,l_elph_corr,l_cohsex,Finite_Tel,l_elphoton_corr
+ use drivers,       ONLY:l_life,l_ppa,l_elel_corr,l_elph_corr,l_cohsex,Finite_Tel,l_elphoton_corr,l_qp_hyb
  use electrons,     ONLY:levels,n_sp_pol,spin
  use stderr,        ONLY:real2ch
  use R_lattice,     ONLY:bz_samp
@@ -133,6 +133,17 @@ subroutine QP_driver(X,Xen,Xk,en,k,q,Xw,Dip)
    !
    QP_DB_kind=QP_SE_GoWo_PPA
    !
+   !
+ else if (l_qp_hyb) then
+   !
+   ! in COHSEX no SC possible
+   !
+   GWo_iterations=0
+   !
+   qp%description(2)=' == Hybrid QP =='
+   qp%description(3)=' '
+   !
+   QP_DB_kind=QP_SE_COHSEX
    !
  else if (l_cohsex) then
    !

@@ -87,10 +87,6 @@ subroutine QP_hyb_Exx(E,k,Xk,q,mode)
  !
  call QP_state_extract_print( )
  !
-! allocate(QP_hyb_screen(QP_ng_Sx,q%nbz))
-! QP_hyb_screen=(0.0,0.0)
-! call QP_effective_screen(XwHyb,q,io_X_err)  ! Here Jiuyu call X_mat
- !
  if(.not.l_sc_run .and. .not.l_real_time) then
    !
    ! WF distributed & load
@@ -162,8 +158,7 @@ subroutine QP_hyb_Exx(E,k,Xk,q,mode)
    !
    call DEV_SUBNAME(scatter_Gamp)(isc,'x')
    !
-   if (trim(mode_)=='hyb') call scatter_ModScr(isc,WF_exx_screening)
-   call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
+!   call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
    !
 #if !defined _CUDA
    !$omp do schedule(dynamic)
@@ -172,18 +167,13 @@ subroutine QP_hyb_Exx(E,k,Xk,q,mode)
      iq_ibz=q%sstar(iq,1)
      is_ibz=q%sstar(iq,2)
      !
-!     iq_ibz=isc%qs(2)
-!     if(iq.ne.iq_ibz) QP_hyb_screen(:,iq) = QP_hyb_screen(:,iq_ibz)	
-!	call msg('r','QP_hyb_screen:', real(QP_hyb_screen(1,iq)))
-     !
      if (.not.PAR_IND_Q%element_1D(iq_ibz)) cycle
      !
      isc%qs(2:)=(/iq_ibz,is_ibz/)
      !
      if (isc%qs(2)/=isc%iqref) then 
        call DEV_SUBNAME(scatter_Gamp)(isc,'x')
-       if (trim(mode_)=='hyb') call scatter_ModScr(isc,WF_exx_screening)
-       call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
+!       call scatter_ModScr(isc,WF_exx_screening) ! mod 1/q^3 for hyb2d
      endif
      !
      !  (n,k,sp_n).     

@@ -78,6 +78,7 @@ module QP_m
  complex(SP),allocatable:: QP_Vnl_xc(:)
  complex(SP),allocatable:: QP_Sc(:,:)
  complex(SP),allocatable:: QP_Vxc(:)
+ complex(SP),allocatable:: QP_scr_Vxc(:)
  integer,    allocatable:: QP_solver_state(:)
  integer,    allocatable:: QP_table(:,:)
  logical,    allocatable:: QP_state(:,:)

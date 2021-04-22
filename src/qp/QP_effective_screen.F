@@ -127,7 +127,8 @@ subroutine QP_effective_screen(X,Xw,q,io_X_err)
    endif
  endif
  !
- do iq_W=1,q%nibz
+! do iq_W=1,q%nibz
+ do iq_W=1,1
    !
    isc%qs(2)=iq_W
    call DEV_SUBNAME(scatter_Gamp)(isc,'c')

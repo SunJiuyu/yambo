@@ -42,10 +42,10 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
 &                        io_RESPONSE,deliver_IO_error_message
  use QP_m,          ONLY:QP_t,QP_n_G_bands,QP_dSc_steps,&
 &                        QP_Sc,QP_n_states,QP_G_damp,QP_table,QP_dSc_delta,&
-&                        COHSEX_use_empties,l_GW_terminator,GW_terminator_Kind
+&                        COHSEX_use_empties,l_GW_terminator,GW_terminator_Kind 
  use X_m,           ONLY:X_alloc,X_mat,X_mat_d,X_t
  use wave_func,     ONLY:WF
- use R_lattice,     ONLY:qindx_S,bz_samp,G_m_G
+ use R_lattice,     ONLY:qindx_S,bz_samp,G_m_G,bare_qpg
  use D_lattice,     ONLY:nsym,i_time_rev,i_space_inv,mag_syms
  use wrapper,       ONLY:M_by_V
  use interfaces,    ONLY:PARALLEL_global_indexes,PARALLEL_WF_index,WF_load,WF_free,&
@@ -94,6 +94,7 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
  !
  integer,     external ::io_X
  complex(SP), external ::QP_ppa_EET_terminator
+ complex(SP), allocatable :: X_mat_eff(:)
  !
  ! Reset & checks
  !
@@ -193,6 +194,7 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
  !
  if (l_sc_coh.or.l_sc_sex.or.l_cohsex.or.l_sc_srpa) then
    if (io_RESPONSE) call X_alloc('X',(/X%ng,X%ng,1/))
+   allocate(X_mat_eff(X%ng))
    allocate(dc(2))
  else
    if (io_RESPONSE) call X_alloc('X',(/X%ng,X%ng,2/))
@@ -257,6 +259,7 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
        !
        !$omp parallel do default(shared), private(ig1,ig2)
        do ig2=1,X%ng
+         X_mat_eff(ig2) = cZERO
          do ig1=1,X%ng
            if (l_ppa) then
              if (real(X_mat(ig1,ig2,X_range(1))/X_mat(ig1,ig2,X_range(2)))<=1._SP) then
@@ -266,6 +269,7 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
              endif
            else
              X_mat(ig1,ig2,X_range(1))=X_mat(ig1,ig2,X_range(1))*isc%gamp(ig1,ig2)
+             X_mat_eff(ig2)=X_mat_eff(ig2)+X_mat(ig1,ig2,X_range(1))/bare_qpg(iqibz,ig1)*bare_qpg(iqibz,ig2)
            endif
          enddo
        enddo
@@ -517,12 +521,13 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
          !
        else if (l_sc_sex.or.l_cohsex.or.(l_sc_coh.and.COHSEX_use_empties)) then
          !
-         call M_by_V('N', X%ng, X_mat(:,:,X_range(1)), conjg(iscp%rhotw), local_rhotw)
+!         call M_by_V('N', X%ng, X_mat(:,:,X_range(1)), conjg(iscp%rhotw), local_rhotw)
          !
          pre_factor=0.0_SP
          !$omp parallel do default(shared), private(ig1), reduction(+:pre_factor)
          do ig1=1,X%ng
-           pre_factor=pre_factor+isc%rhotw(ig1)*local_rhotw(ig1)
+!           pre_factor=pre_factor+isc%rhotw(ig1)*local_rhotw(ig1)
+           pre_factor=pre_factor+isc%rhotw(ig1)*conjg(iscp%rhotw(ig1))*X_mat_eff(ig1)
          enddo
          !$omp end parallel do
 
@@ -589,6 +594,7 @@ subroutine QP_ppa_cohsex(X,Xk,E,k,q,qp,Xw,GW_iter)
  endif
  l_X_alloc=.true.
  if(l_X_alloc) call X_alloc('X')
+ if(allocated(X_mat_eff)) deallocate(X_mat_eff)
  !
  call timing('GW(ppa)',OPR='stop')
  !

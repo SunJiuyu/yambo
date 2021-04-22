@@ -23,7 +23,7 @@
 !
 subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  !
- use drivers,       ONLY:l_acfdt,l_sc_run,l_real_time,l_gw0
+ use drivers,       ONLY:l_acfdt,l_sc_run,l_real_time,l_gw0,l_qp_hyb
  use pars,          ONLY:schlen,rZERO,SP,cZERO
  use com,           ONLY:msg
  use units,         ONLY:HA2EV
@@ -34,7 +34,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  use IO_m,          ONLY:io_control,OP_RD_CL,OP_WR_CL,VERIFY,REP
  use QP_m,          ONLY:QP_table,QP_Vxc,QP_Vnl_xc,QP_n_states,Vxc_kind,Vnlxc_kind,&
 &                        XCo_Hartree_Fock,QP_t,QP_nb,QP_nk,QP_reset,&
-&                        report_Vnlxc,report_Sc,report_dSc
+&                        report_Vnlxc,report_Sc,report_dSc,QP_scr_Vxc
  use interfaces,    ONLY:WF_free
  use wave_func,     ONLY:WF
  use global_XC,     ONLY:WF_exx_fraction,WF_exx_screening
@@ -64,6 +64,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  !
  integer           ::i_qp,ib,ik,ibp,ikp,i_s
  character(schlen) ::sec_mode_and_message(2),ch,ch_spin,nloc_fmt,loc_fmt
+ character(schlen) :: hyb_fmt,xloc_fmt
  logical           ::l_local
  type(QP_t)        ::qp
  type(X_t)     ::X
@@ -76,7 +77,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  ! Section
  !
  sec_mode_and_message(1)='*'
- sec_mode_and_message(2)='Hybrid: Bare local and non-local Exchange-Correlation'
+ sec_mode_and_message(2)='Bare local and non-local Exchange-Correlation'
  if (l_acfdt)   sec_mode_and_message(1)='p'
  l_local=.true.
  if(l_local) call section(trim(sec_mode_and_message(1)),trim(sec_mode_and_message(2)))
@@ -104,6 +105,10 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  QP_Vxc=cZERO
  if (l_screen_hyb) QP_Vnl_sex=cZERO
  !
+ if(l_qp_hyb.and.(.not.allocated(QP_scr_Vxc))) then
+     YAMBO_ALLOC(QP_scr_Vxc,(QP_n_states))
+     QP_scr_Vxc=cZERO
+ endif
  !
  ! Main DB I/O
  !
@@ -120,7 +125,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
  else
    !
    !
-   call QP_effective_screen(X,XwQP,q,io_X_err)  ! Here Jiuyu call X_mat
+   if(l_qp_hyb) call QP_effective_screen(X,XwQP,q,io_X_err)  ! Here Jiuyu call X_mat
    call QP_hyb_Exx(E,k,Xk,q)
    !
    !
@@ -134,7 +139,7 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
    !
    call XC_nlcc_setup()
    !
-   call QP_hyb_local(E,Xk)
+   call QP_hyb_local(E,Xk,l_qp_hyb)
 !
    if (.not.l_screen_hyb) then
      QP_Vxc = QP_Vxc + WF_exx_fraction*QP_Vnl_xc !Hybridize...
@@ -205,15 +210,24 @@ subroutine QP_hyb_driver(X,E,k,Xk,q,XwQP)
        ! 
        nloc_fmt='<'//trim(intc(ib))//trim(ch_spin)//'|'//trim(Vnlxc_kind)//'|'//trim(intc(ibp))&
 &         //trim(ch_spin)//'> ='
+
        loc_fmt='<'//trim(intc(ib))//trim(ch_spin)//'|'//trim(Vxc_kind)//'|'//trim(intc(ibp))&
 &         //trim(ch_spin)//'> ='
+  ! screened DFT vxc
+       Vxc_kind='xDFT'
+       xloc_fmt=trim(Vxc_kind)//'|'//trim(intc(ibp))&
+&         //trim(ch_spin)//'> ='
+!
+      Vxc_kind='DFT'
        !
        ch=trim(nloc_fmt)//' '//&
 &        trim(real2ch(real(QP_Vnl_xc(i_qp)*HA2EV)))//' '//&
 &        trim(real2ch(aimag(QP_Vnl_xc(i_qp)*HA2EV)))//' '//&
 &        trim(loc_fmt)//' '//&
 &        trim(real2ch(real(QP_Vxc(i_qp)*HA2EV)))//' '//&
-&        trim(real2ch(aimag(QP_Vxc(i_qp)*HA2EV)))
+&        trim(real2ch(aimag(QP_Vxc(i_qp)*HA2EV)))//' '// &
+&        trim(xloc_fmt)//' '//&
+&        trim(real2ch(real(QP_scr_Vxc(i_qp)*HA2EV)))
        !
        if (i_qp/=QP_n_states) call msg('r',trim(ch))
        if (i_qp==QP_n_states) call msg('rn',trim(ch))
