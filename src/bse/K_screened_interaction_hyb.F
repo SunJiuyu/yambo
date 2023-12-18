@@ -220,7 +220,12 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
        return
      endif
      !
-     forall(i_g2=1:X%ng) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+     !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
+     if(iq_W.eq.1) then
+      BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
+      if(BS_K_is_HYB)  BS_hybrd_frac = 1._SP/BS_K_eM
+     endif
+    endif
      !
 #if defined _CUDA
      ! device <- host transfer
@@ -248,16 +253,25 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
      end if
      !
      if (BS_W_is_diagonal) then
-       !$cuf kernel do(1) <<<*,*>>>
-       do i_g2=1, BS_n_g_W
+      if(BS_K_is_SXX.or.BS_K_is_HYB) then
+       forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
+      elseif(BS_K_is_MDL) then
+        !$cuf kernel do(1) <<<*,*>>>
+        do i_g2=1, BS_n_g_W
           i_g2_mat=min(i_g2,X%ng)
 #if defined _CUDA
           BS_W(i_g2,1,iq_W)=real(X_mat_d(i_g2_mat,i_g2_mat,1),SP)*gamp_d(i_g2,1)
 #else
-          BS_W(i_g2,1,iq_W)=real(X_mat(i_g2_mat,i_g2_mat,1),SP)*isc%gamp(i_g2,1)
+          model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
+&   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
+&   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
+          BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
 #endif
-       enddo
+        enddo
+      endif
      else if (.not.BS_W_is_diagonal) then
+       call warning("off-diagonal W is not supported currently!!")
+       return
        !$cuf kernel do(1) <<<*,*>>>
        do i_g3=1,BS_n_g_W
          i_g3_mat=min(i_g3,X%ng)
