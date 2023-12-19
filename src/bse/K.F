@@ -558,7 +558,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          !
        endif 
        ! 
-       if (BS_K_is_ALDA) then 
+       if (BS_K_is_ALDA.or.BS_K_is_HYB) then
          is_k = (/i_c_k,i_k,i_k_s,i_k_sp_pol_c/) 
          os_k = (/i_v_k,i_kmq,i_kmq_s,i_k_sp_pol_v/) 
          is_p = (/i_c_p,i_p,i_p_s,i_p_sp_pol_c/) 

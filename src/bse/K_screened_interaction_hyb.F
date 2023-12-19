@@ -67,6 +67,8 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
 !
  W_is_unscreened=l_td_hf !.or.l_tddft: here we comment l_tddft because it is in screen_hyb subroutine. We do not consider standard runs.
  !
+ exp_user = .true.
+ !
  if (W_is_unscreened) then
    !
    io_X_err=0
