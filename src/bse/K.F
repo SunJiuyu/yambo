@@ -599,11 +599,11 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          if(BS_K_is_HYB)  then
             select case(BS_hybrd_type)
              case(1)  
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',4)
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
              case(2)
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',1)+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',2)
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
              case(3)
-               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'RES',3)
+               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
             end select
          endif
          !
@@ -632,7 +632,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'CPL')
          !
          ! Hybrid
-         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,'CPL')
+         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'CPL')
          !
          ! Correlations
          if (BS_cpl_K_corr) then

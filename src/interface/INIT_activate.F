@@ -15,7 +15,8 @@ subroutine INIT_activate()
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hf,l_setup,l_sc_run,l_rim,l_rim_w,&
 &                         l_real_time,l_ppa,l_mpa,l_lrc_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_td_sex,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
-&                         l_sc_magnetic,l_sc_electric,l_dipoles,l_pf_fxc,l_nl_optics,l_phel_corr,l_nl_p_and_p,l_X
+&                         l_sc_magnetic,l_sc_electric,l_dipoles,l_pf_fxc,l_nl_optics,l_phel_corr,l_nl_p_and_p,l_X,&
+&                         l_bsk_sxx, l_bsk_hybrd, l_bsk_model
 #if defined _SC || defined _RT
  use hamiltonian,    ONLY:H_potential
 #endif
@@ -215,6 +216,10 @@ subroutine INIT_activate()
    !                     
    call initactivate(1,'BSENGexx ALLGexx')
    call initactivate(1,'Qdirection QShiftOrder')
+   !
+     if(l_bsk_sxx) call initactivate(1,'eM00') !use type to differ from the big kernel mod 
+     if(l_bsk_model) call initactivate(1,'eM00')
+     if(l_bsk_hybrd) call initactivate(1,'Hybrid_frac Hybrid_type')   
    !
    if(l_td_hf.or.l_td_sex) call initactivate(1,'BSENGBlk')
    if(l_td_sex)            call initactivate(1,'WehDiag WehCpl')

@@ -5,12 +5,12 @@
 !
 ! Authors (see AUTHORS file for details): DS
 !
-subroutine K_screened_interaction(X,Xw,q,io_X_err)
+subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  !
  use pars,         ONLY:SP,pi,cZERO,cI
  use stderr,       ONLY:intc
  use units,        ONLY:HBAR_eVfs,BO2ANG,HBAR_SI
- use com,          ONLY:exp_user
+ use com,          ONLY:exp_user,msg
  use frequency,    ONLY:w_samp
  use drivers,      ONLY:l_td_hf,l_tddft,l_rim_w
  use collision_el, ONLY:elemental_collision,elemental_collision_free
@@ -65,7 +65,7 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
  q_ThmsFrm2 = 4.0*(3.0*ele_density/pi)**(1.0/3.0)/BO2ANG  !Thomas-Fermi vector: q_tf^2 = 
  m2wp2 = ele_density*9.10938/8.854*1.602176462**2  ! free electron plasma freqency: wp^2 = density*e^2/e0/m_e
 !
- W_is_unscreened=l_td_hf.or.l_tddft
+ W_is_unscreened=l_td_hf !.or.l_tddft: here we comment l_tddft because it is in screen_hyb subroutine. We do not consider standard runs.
  !
  if (W_is_unscreened) then
    !
@@ -211,6 +211,8 @@ subroutine K_screened_interaction(X,Xw,q,io_X_err)
    call DEV_SUB(scatter_Gamp)(isc,'c')
    !
    if (.not.W_is_unscreened) then
+     !
+     if(.not.BS_eM_is_manual) then
      !
      IO_ACT=manage_action(RD_CL_IF_END,iq_W,1,q%nibz)
      call io_control(ACTION=IO_ACT,COM=NONE,SEC=(/2*iq_W,2*iq_W+1/),ID=XID)
