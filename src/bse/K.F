@@ -28,13 +28,14 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  use QP_m,          ONLY:QP_ng_Vxc
  use BS,            ONLY:BS_bands,BS_res_K_corr,BS_W,BS_W_is_diagonal,&
 &                        BS_res_K_exchange,BS_Block_size,&
-&                        O_ng,BS_n_g_exch,BS_n_g_fxc,BS_identifier,BS_LiveTiming_steps,&
+&                        O_ng,BS_n_g_W,BS_n_g_exch,BS_n_g_fxc,BS_identifier,BS_LiveTiming_steps,&
 &                        BS_K_dim,BS_K_is_ALDA,BS_cpl_K_exchange,&
 &                        BS_cpl_K_corr,K_EXCH_collision,K_CORR_collision,&
 &                        BS_oscillators_free,WF_phase,n_BS_blks,BS_blk,BS_T_grp,&
 &                        BS_nT_grps,BS_blks_free,l_BS_ares_from_res,&
 &                        l_BSE_minimize_memory,l_BSE_restart,l_BSE_kernel_complete,&
-&                        BS_perturbative_SOC,BS_K_cutoff,BS_max_val
+&                        BS_perturbative_SOC,BS_K_cutoff,BS_max_val,&
+& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
  use collision_el,  ONLY:elemental_collision_free
  use IO_int,        ONLY:io_control
  use IO_m,          ONLY:REP,OP_WR,RD,WR_CL,OP_APP,deliver_IO_error_message,WR
@@ -127,6 +128,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  else
    if (BS_K_is_ALDA) then
      section_title="TDDFT Kernel"
+   elseif(BS_K_is_HYB) then
+     section_title="Hybrid Kernel"
    else
      section_title="BSE Kernel"
    endif
@@ -204,7 +207,13 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  if (l_rim_w) call QP_interpolate_W(X,Xw,q,'BSE')
  !
  io_X_err=0
- if (BS_res_K_corr) call K_screened_interaction(X,Xw,q,io_X_err)
+ if (BS_res_K_corr) then
+  if (BS_K_is_HYB.or.BS_K_is_SXX.or.BS_K_is_MDL) then
+    call K_screened_interaction_hyb(X,Xw,q,io_X_err)
+  else
+    call K_screened_interaction(X,Xw,q,io_X_err)
+  endif
+ endif
  !
  if (io_X_err<0) then
    call deliver_IO_error_message(io_X_err,'PP/Em1s')
@@ -242,13 +251,13 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  ! Wave Functions
  !================
  bands_to_load=BS_bands
- if (BS_K_is_ALDA) bands_to_load=(/1,BS_bands(2)/)
+ if (BS_K_is_ALDA.or.BS_K_is_HYB) bands_to_load=(/1,BS_bands(2)/)
  !
  section_title='-BSK'
  if (l_bs_fxc) section_title='-BSK->Fxc'
  !
  NG=max(O_ng,BS_n_g_exch)
- if (BS_K_is_ALDA) NG=max(NG,BS_n_g_fxc)
+ if (BS_K_is_ALDA.or.BS_K_is_HYB) NG=max(NG,BS_n_g_fxc)
  !
  call WF_load(WF,NG,O_ng_shift,bands_to_load,(/1,Xk%nibz/),space='R',title=trim(section_title))
  !
@@ -262,7 +271,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
  !
  ! ALDA
  !======
- if (BS_K_is_ALDA) then
+ if (BS_K_is_ALDA.or.BS_K_is_HYB) then
    !
    YAMBO_ALLOC(tddft_wf%rhotwr1,(fft_size*n_spinor*n_spinor))
    YAMBO_ALLOC(tddft_wf%rhotwr2,(fft_size*n_spinor*n_spinor))
@@ -551,7 +560,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          !
        endif 
        ! 
-       if (BS_K_is_ALDA) then 
+       if (BS_K_is_ALDA.or.BS_K_is_HYB) then
          is_k = (/i_c_k,i_k,i_k_s,i_k_sp_pol_c/) 
          os_k = (/i_v_k,i_kmq,i_kmq_s,i_k_sp_pol_v/) 
          is_p = (/i_c_p,i_p,i_p_s,i_p_sp_pol_c/) 
@@ -588,6 +597,18 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          ! ALDA
          if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
          !
+         ! Hybrid
+         if(BS_K_is_HYB)  then
+            select case(BS_hybrd_type)
+             case(1)  
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+             case(2)
+               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+             case(3)
+               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+            end select
+         endif
+         !
          ! Correlations
          if (BS_res_K_corr) then
            if (l_std_alg)       H_c=K_correlation_kernel_std(i_block,i_p,i_pmq, &
@@ -611,6 +632,9 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          !
          ! ALDA
          if (BS_K_is_ALDA)      H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'CPL')
+         !
+         ! Hybrid
+         if(BS_K_is_HYB)     H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'CPL')
          !
          ! Correlations
          if (BS_cpl_K_corr) then
@@ -696,7 +720,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    YAMBO_FREE(F_xc_gspace)
    YAMBO_FREE(FXC_K_diagonal)
    !
- else if (BS_K_is_ALDA) then
+ else if (BS_K_is_ALDA.or.BS_K_is_HYB) then
    !
    YAMBO_FREE(tddft_wf%rhotwr1)
    YAMBO_FREE(tddft_wf%rhotwr2)

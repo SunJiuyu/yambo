@@ -18,9 +18,11 @@ subroutine K_driver_init(what,iq,Ken,Xk)
  use BS,           ONLY:BSE_L_kind,BSE_mode,BS_K_is_ALDA,BS_dip_size,l_BSE_minimize_memory,BS_perturbative_SOC,&
 &                       BS_perturbative_SOC,l_BS_magnons,l_BS_photolum,&
 &                       BS_cpl_K_exchange,BS_n_g_exch,BS_res_K_exchange,BS_K_coupling,BS_res_ares_n_mat,&
-&                       BS_n_eh_spaces,l_BS_ares_from_res,BS_bands,BS_K_anti_resonant
+&                       BS_n_eh_spaces,l_BS_ares_from_res,BS_bands,BS_K_anti_resonant,&
+&     BS_K_is_HYB, BS_K_is_SXX, BS_K_is_MDL!, BS_K_eMread, BS_hybrd_frac
  use TDDFT,        ONLY:FXC_is_retarded,FXC_n_g_corr
- use drivers,      ONLY:l_col_cut,l_rpa_IP,l_alda_fxc,l_bs_fxc
+ use drivers,      ONLY:l_col_cut,l_rpa_IP,l_alda_fxc,l_bs_fxc, &
+&                  l_bsk_sxx,l_bsk_hybrd,l_bsk_model
  use D_lattice,    ONLY:i_time_rev,i_space_inv,l_3D
 #if defined _RT
  use drivers,      ONLY:l_rt_carriers_in_use
@@ -161,7 +163,10 @@ subroutine K_driver_init(what,iq,Ken,Xk)
  if (.not.STRING_match(BSE_L_kind,"bar").and..not.STRING_match(BSE_L_kind,"full")) &
  & call error('set Lkind = DEFAULT or BAR or FULL')
  !
- BS_K_is_ALDA=l_alda_fxc
+ BS_K_is_ALDA=l_alda_fxc.and.(.not.l_bsk_hybrd)
+ BS_K_is_SXX=l_bsk_sxx
+ BS_K_is_MDL=l_bsk_model
+ BS_K_is_HYB=l_bsk_hybrd
  BS_dip_size=1
  !
  ! Memory saving

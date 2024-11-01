@@ -86,6 +86,9 @@ module drivers
  logical :: l_pf_fxc             =.FALSE.
  logical :: l_td_hf              =.FALSE.
  logical :: l_td_sex             =.FALSE.
+ logical :: l_bsk_hybrd          =.FALSE.
+ logical :: l_bsk_model          =.FALSE.
+ logical :: l_bsk_sxx            =.FALSE.
  !
  ! XC kinds (Potential)
  !

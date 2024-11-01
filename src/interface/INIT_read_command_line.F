@@ -10,7 +10,7 @@ subroutine INIT_read_command_line(rstr,init_)
  use pars,           ONLY:schlen
  use drivers,        ONLY:infile_editing,l_bse,l_alda_fxc,l_chi,l_elel_corr,l_nl_p_and_p,&
 &                         l_elel_scatt,l_elph_corr,l_elph_scatt,l_elphoton_corr,&
-&                         l_elphoton_scatt,l_em1s,l_em1d,l_ppa,l_mpa,l_phel_scatt,l_phel_corr,l_dipoles,l_X
+&                         l_elphoton_scatt,l_em1s,l_em1d,l_ppa,l_mpa,l_phel_scatt,l_phel_corr,l_dipoles,l_X,l_bsk_sxx,l_bsk_hybrd,l_bsk_model
  use BS,             ONLY:BSK_mode
  use BS_solvers,     ONLY:BSS_mode
  use X_m,            ONLY:Chi_mode
@@ -186,6 +186,9 @@ subroutine INIT_read_command_line(rstr,init_)
          if( STRING_same(trim(rstr_piece(i1+1)) , 'hf'))       BSK_mode='HF'
          if( STRING_same(trim(rstr_piece(i1+1)) , 'alda'))     BSK_mode='ALDA'
          if( STRING_same(trim(rstr_piece(i1+1)) , 'sex'))      BSK_mode='SEX'
+         if( STRING_same(trim(rstr_piece(i1+1)) , 'sxx'))      BSK_mode='SXX'  ! Jiuyu sxx
+         if( STRING_same(trim(rstr_piece(i1+1)) , 'hybrid'))      BSK_mode='Hybrid'
+         if( STRING_same(trim(rstr_piece(i1+1)) , 'model'))      BSK_mode='model'         
          if( STRING_same(trim(rstr_piece(i1+1)) , 'bsfxc'))    BSK_mode='BSfxc'
          if( STRING_same(trim(rstr_piece(i1+1)) , 'ip'))       BSK_mode='IP'
        else if(l_chi.or.l_em1s.or.l_em1d.or.l_ppa.or.l_mpa) then

@@ -17,7 +17,8 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
 &                         l_chi,l_cohsex,l_life,l_rpa_IP,l_td_hartree,l_tddft,list_dbs,l_td_hf,l_setup,l_sc_run,l_rim,l_rim_w,&
 &                         l_real_time,l_ppa,l_lrc_fxc,l_gw0,l_elel_corr,l_elel_scatt,l_elph_corr,l_td_sex,&
 &                         l_elph_Hamiltonian,l_elph_scatt,l_elphoton_corr,l_elphoton_scatt,l_em1d,l_eval_collisions,&
-&                         l_sc_magnetic,l_sc_electric,l_dipoles,l_pf_fxc,l_nl_optics,l_mpa,l_phel_corr,l_X,l_screen
+&                         l_sc_magnetic,l_sc_electric,l_dipoles,l_pf_fxc,l_nl_optics,l_mpa,l_phel_corr,l_X,l_screen,&
+&                         l_bsk_sxx, l_bsk_hybrd, l_bsk_model
 #if defined _SCALAPACK
  use drivers,        ONLY:l_slk_test
 #endif
@@ -366,13 +367,16 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
      !
      l_rpa_IP     = STRING_same(trim(Chi_mode),"IP").or.STRING_same(trim(BSK_mode),"IP")
      l_td_hartree = STRING_same(trim(Chi_mode),"HARTREE").or.STRING_same(trim(BSK_mode),"HARTREE")
-     l_alda_fxc   = STRING_same(trim(Chi_mode),"ALDA").or.STRING_same(trim(BSK_mode),"ALDA")
+     l_alda_fxc   = STRING_same(trim(Chi_mode),"ALDA").or.STRING_same(trim(BSK_mode),"ALDA").or.STRING_same(trim(BSK_mode),"Hybrid")
      l_lrc_fxc    = STRING_same(trim(Chi_mode),"LRC")
      l_pf_fxc     = STRING_same(Chi_mode,'PF')
      l_bs_fxc     = STRING_same(trim(Chi_mode),"BSFXC").or.STRING_same(trim(BSK_mode),"BSFXC")
-     l_tddft      = l_alda_fxc.or.l_lrc_fxc.or.l_bs_fxc
+     l_tddft      = l_alda_fxc.or.l_lrc_fxc.or.l_bs_fxc.or.l_bsk_hybrd
      l_td_hf      = STRING_same(trim(BSK_mode),"HF")
-     l_td_sex     = STRING_same(trim(BSK_mode),"SEX")
+     l_bsk_sxx    = STRING_same(trim(BSK_mode),"SXX")
+     l_bsk_hybrd  = STRING_same(trim(BSK_mode),"Hybrid")
+     l_bsk_model  = STRING_same(trim(BSK_mode),"model")
+     l_td_sex     = STRING_same(trim(BSK_mode),"SEX").or.l_bsk_sxx.or.l_bsk_hybrd.or.l_bsk_model
      !
    end subroutine LOCAL_from_runlevels_to_logicals
    !
@@ -493,7 +497,7 @@ integer function INIT(en,q,k,X,Xw,Dip,instr,lnstr,CLOSE_Gs,FINALIZE)
      if (l_bse) then
        BS_res_K_exchange=l_td_hartree.or.l_tddft.or.l_td_hf.or.l_td_sex
        BS_res_K_corr    =l_bs_fxc.or.l_td_hf.or.l_td_sex.or.(l_tddft.and.((WF_exx_fraction > 0._SP).or.(WF_exx_screening> 0._SP)))
-       BS_W_is_diagonal =l_td_hf .or. (l_tddft.and.(WF_exx_fraction > 0._SP).and. .not.(WF_exx_screening> 0._SP) )
+       BS_W_is_diagonal =l_td_hf .or. (l_tddft.and.(WF_exx_fraction > 0._SP).and. .not.(WF_exx_screening> 0._SP) ).or.l_bsk_hybrd.or.l_bsk_sxx.or.l_bsk_model
        BS_K_coupling    =index(BSE_mode,'coupling')>0
        if (BS_K_coupling) then
          BS_cpl_K_exchange=BS_res_K_exchange  

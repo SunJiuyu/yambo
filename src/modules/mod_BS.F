@@ -25,6 +25,12 @@ module BS
  logical :: BS_cpl_K_exchange=.FALSE.
  logical :: BS_cpl_K_corr=.FALSE.
  logical :: BS_K_is_ALDA=.FALSE.
+ logical :: BS_K_is_HYB
+ logical :: BS_K_is_SXX
+ logical :: BS_K_is_MDL 
+ real(SP) :: BS_K_eMread
+ real(SP) :: BS_hybrd_frac
+ integer :: BS_hybrd_type
  logical :: BS_not_const_eh_f=.FALSE.
  logical :: BS_perturbative_SOC=.FALSE.
  logical :: BS_K_has_been_calculated_loaded=.FALSE.
