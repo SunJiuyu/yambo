@@ -29,7 +29,8 @@ module BS
  logical :: BS_K_is_SXX
  logical :: BS_K_is_MDL 
  real(SP) :: BS_K_eMread
- real(SP) :: BS_hybrd_frac
+ real(SP) :: BS_hybrd_head
+ real(SP),allocatable :: BS_hybrd_frac(:,:)
  integer :: BS_hybrd_type
  logical :: BS_not_const_eh_f=.FALSE.
  logical :: BS_perturbative_SOC=.FALSE.

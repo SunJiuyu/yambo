@@ -35,7 +35,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
 &                        BS_nT_grps,BS_blks_free,l_BS_ares_from_res,&
 &                        l_BSE_minimize_memory,l_BSE_restart,l_BSE_kernel_complete,&
 &                        BS_perturbative_SOC,BS_K_cutoff,BS_max_val,&
-& BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+&                        BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,&
+&                        BS_K_is_HYB,BS_hybrd_frac,BS_hybrd_type,BS_ALDA_is_G
  use collision_el,  ONLY:elemental_collision_free
  use IO_int,        ONLY:io_control
  use IO_m,          ONLY:REP,OP_WR,RD,WR_CL,OP_APP,deliver_IO_error_message,WR
@@ -178,11 +179,11 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    call fft_check_size(1,O_ng,BS_n_g_exch,"Kx")
    ! Hybrid functional.
    ! The cutoff on the non-hybrid part, BS_n_g_fxc, need to be lowered
-   if (BS_K_is_ALDA) call fft_check_size(1,O_ng,BS_n_g_fxc,"Kx")
+   if (BS_K_is_ALDA.or.BS_K_is_HYB) call fft_check_size(1,O_ng,BS_n_g_fxc,"Kx")
    if(iq/=1) O_ng_shift=max(qindx_B_max,O_ng_shift)
  endif
  !
- if (BS_K_is_ALDA.and.trim(ALDA_cut_scheme)=="lower_GmGp") then
+ if ((BS_K_is_ALDA.or.BS_K_is_HYB).and.trim(ALDA_cut_scheme)=="lower_GmGp") then
    FXC_n_g_corr=BS_n_g_fxc
    if (BS_n_g_fxc/= eval_G_minus_G(BS_n_g_fxc,0) ) then
      BS_n_g_fxc   = eval_G_minus_G(BS_n_g_fxc,0)
@@ -215,7 +216,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
   endif
  endif
  !
- if (io_X_err<0) then
+ if (io_X_err<0) then ! might be here to skip Em1s read for hybrid and sxx.
    call deliver_IO_error_message(io_X_err,'PP/Em1s')
    call warning('Bethe Salpter section skipped. Impossible to build the kernel.')
    n_BS_blks=0

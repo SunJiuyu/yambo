@@ -22,7 +22,8 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  use electrons,    ONLY:levels,spin_occ,spin,n_spin,nel
  use X_m,          ONLY:X_ALLOC_elemental,X_t,X_mat,X_mat_d
  use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W, &
- & BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+ & BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread, &
+ & BS_K_is_HYB,BS_hybrd_frac,BS_hybrd_head,BS_hybrd_type
  use IO_int,       ONLY:io_control
  use IO_m,         ONLY:manage_action,OP_RD_CL,REP,VERIFY,NONE,&
 &                       OP_RD,RD,RD_CL,RD_CL_IF_END
@@ -120,13 +121,13 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
 
    if(BS_K_is_HYB) then
 !     allocate(inv_epsilon(1,1))
-     if(BS_hybrd_frac.gt.1E-4) then
+     if(BS_hybrd_head.gt.1E-4) then
       BS_eM_is_manual = .true.
 !      inv_epsilon(1,1) = BS_hybrd_frac
-      BS_K_eM = 1._SP/BS_hybrd_frac
+      BS_K_eM = 1._SP/BS_hybrd_head
       BS_K_eMread = BS_K_eM
       call msg('r','We use manual epsilon: ', BS_K_eM)
-     elseif(BS_hybrd_frac.lt.-0.1) then
+     elseif(BS_hybrd_head.lt.-0.1) then
       BS_K_eMread = 0.0
       BS_K_eM = 0.0
       call msg('r','We use RPA epsilon: ', BS_K_eM) 
@@ -139,7 +140,12 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
     case(2)
       call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c ',BS_hybrd_type)
     case(3)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together ',BS_hybrd_type)
+      call msg('r','We are doing Range-separated DDH in G-space, as well as ALDA',BS_hybrd_type)
+      BS_ALDA_is_G = .true.
+      BS_hyb_is_global=.false.
+      BS_W_is_model=.true.
+    case(4)
+      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together just for comparative test with type2',BS_hybrd_type)
 !    call msg('r','We are doing SXX, empirical epsilon ',BS_SXX_type)
     end select
 
@@ -180,6 +186,11 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  !
  BS_W_size2=BS_n_g_W
  if (BS_W_is_diagonal) BS_W_size2=1
+ !
+ if (BS_hybrd_type==3) then
+  allocate(BS_hybrd_frac(BS_n_g_W,q%nibz))
+  allocate(model_epsilon(BS_n_g_W,1))
+ endif
  !
  ! When TR is present but not the SI X_mat indexes need to be exchanged 
  ! when the TR is applied
@@ -227,7 +238,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
      !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
      if(iq_W.eq.1) then
       BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
-      if(BS_K_is_HYB)  BS_hybrd_frac = 1._SP/BS_K_eM
+      if(BS_K_is_HYB)  BS_hybrd_head = 1._SP/BS_K_eM
      endif
     endif
      !
@@ -257,7 +268,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
      end if
      !
      if (BS_W_is_diagonal) then
-      if(BS_K_is_SXX.or.BS_K_is_HYB) then
+      if(BS_K_is_SXX) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
       elseif(BS_K_is_MDL) then
         !$cuf kernel do(1) <<<*,*>>>
@@ -270,8 +281,22 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
 &   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
 &   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
           BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
+          deallocate(model_epsilon)
 #endif
         enddo
+      elseif(BS_K_is_HYB) then
+        if(BS_hybrd_type==3) then ! range-separated
+          do i_g2=1, BS_n_g_W
+            model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
+&   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
+&   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
+            BS_hybrd_frac(i_g2,iq_W) = 1._SP/model_epsilon(i_g2,1)
+            BS_W(i_g2,1,iq_W)=BS_hybrd_frac(i_g2,iq_W)*isc%gamp(i_g2,1)
+            deallocate(model_epsilon)
+          enddo
+        else ! global range
+          forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
+        endif
       endif
      else if (.not.BS_W_is_diagonal) then
        call warning("off-diagonal W is not supported currently!!")
