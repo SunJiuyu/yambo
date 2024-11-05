@@ -36,7 +36,7 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
 &                        l_BSE_minimize_memory,l_BSE_restart,l_BSE_kernel_complete,&
 &                        BS_perturbative_SOC,BS_K_cutoff,BS_max_val,&
 &                        BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,&
-&                        BS_K_is_HYB,BS_hybrd_frac,BS_hybrd_type,BS_ALDA_is_G
+&                        BS_K_is_HYB,BS_hybrd_frac,BS_hybrd_type
  use collision_el,  ONLY:elemental_collision_free
  use IO_int,        ONLY:io_control
  use IO_m,          ONLY:REP,OP_WR,RD,WR_CL,OP_APP,deliver_IO_error_message,WR
@@ -602,11 +602,11 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
          if(BS_K_is_HYB)  then
             select case(BS_hybrd_type)
              case(1)  
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+               H_x=H_x+(1._SP-BS_hybrd_frac(1))*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
              case(2)
-               H_x=H_x+(1._SP-BS_hybrd_frac)*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+               H_x=H_x+(1._SP-BS_hybrd_frac(1))*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
              case(3)
-               H_x=H_x+TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
+               H_x=H_x+(1._SP-BS_hybrd_frac(iq_W))*TDDFT_ALDA_R_space(is_k,os_k,is_p,os_p,tddft_wf,'RES')
             end select
          endif
          !
@@ -729,6 +729,8 @@ subroutine K(iq,Ken,Xk,q,X,Xw,W_bss)
    YAMBO_FREE(tddft_wf%WF_symm2)
    !
    YAMBO_FREE(F_xc_mat)
+   !
+   if (BS_hybrd_type == 3) deallocate(BS_hybrd_frac)
    !
  endif
  !

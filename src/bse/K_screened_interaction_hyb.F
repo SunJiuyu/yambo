@@ -138,12 +138,9 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  !   if(BS_n_g_W)
       call msg('r','We are doing SXX + (1-a)*ALDA ',BS_hybrd_type)
     case(2)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c ',BS_hybrd_type)
+      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, but still developing ',BS_hybrd_type)
     case(3)
-      call msg('r','We are doing Range-separated DDH in G-space, as well as ALDA',BS_hybrd_type)
-      BS_ALDA_is_G = .true.
-      BS_hyb_is_global=.false.
-      BS_W_is_model=.true.
+      call msg('r','We are doing Finite-Q DDH in R-space ',BS_hybrd_type)
     case(4)
       call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together just for comparative test with type2',BS_hybrd_type)
 !    call msg('r','We are doing SXX, empirical epsilon ',BS_SXX_type)
@@ -188,8 +185,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  if (BS_W_is_diagonal) BS_W_size2=1
  !
  if (BS_hybrd_type==3) then
-  allocate(BS_hybrd_frac(BS_n_g_W,q%nibz))
-  allocate(model_epsilon(BS_n_g_W,1))
+  allocate(BS_hybrd_frac(q%nibz))
  endif
  !
  ! When TR is present but not the SI X_mat indexes need to be exchanged 
@@ -281,20 +277,18 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
 &   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
 &   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
           BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
-          deallocate(model_epsilon)
 #endif
         enddo
+        deallocate(model_epsilon)
       elseif(BS_K_is_HYB) then
-        if(BS_hybrd_type==3) then ! range-separated
-          do i_g2=1, BS_n_g_W
-            model_epsilon(i_g2,1) = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
-&   1.563*(real(bare_qpg(iq_W,i_g2))/BO2ANG)**2/q_ThmsFrm2   +   &
-&   (real(bare_qpg(iq_W,i_g2))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
-            BS_hybrd_frac(i_g2,iq_W) = 1._SP/model_epsilon(i_g2,1)
-            BS_W(i_g2,1,iq_W)=BS_hybrd_frac(i_g2,iq_W)*isc%gamp(i_g2,1)
-            deallocate(model_epsilon)
-          enddo
+        if(BS_hybrd_type==3) then ! finite-q in G-space
+          BS_hybrd_head = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
+&   1.563*(real(bare_qpg(iq_W,1))/BO2ANG)**2/q_ThmsFrm2   +   &
+&   (real(bare_qpg(iq_W,1))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
+          BS_hybrd_frac(iq_W) = 1._SP/BS_hybrd_head
+          forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_hybrd_frac(iq_W)*isc%gamp(i_g2,1)
         else ! global range
+          BS_hybrd_frac(iq_W) = 1._SP/BS_K_eM
           forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
         endif
       endif
