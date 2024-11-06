@@ -22,7 +22,8 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  use electrons,    ONLY:levels,spin_occ,spin,n_spin,nel
  use X_m,          ONLY:X_ALLOC_elemental,X_t,X_mat,X_mat_d
  use BS,           ONLY:BS_n_g_W,BS_W_is_diagonal,BS_W, &
- & BS_K_is_HYB,BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread,BS_hybrd_frac,BS_hybrd_type
+ & BS_K_is_SXX,BS_K_is_MDL,BS_K_eMread, &
+ & BS_K_is_HYB,BS_hybrd_frac,BS_hybrd_head,BS_hybrd_type
  use IO_int,       ONLY:io_control
  use IO_m,         ONLY:manage_action,OP_RD_CL,REP,VERIFY,NONE,&
 &                       OP_RD,RD,RD_CL,RD_CL_IF_END
@@ -59,7 +60,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  ! Jiuyu setting model BSE and parameters, to be optimized to dielectric module
  logical              ::  BS_eM_is_manual=.false.
  real(SP),allocatable  :: model_epsilon(:,:)
- real(SP)             :: ele_density,q_ThmsFrm2,m2wp2,BS_K_eM
+ real(SP)             :: ele_density,q_ThmsFrm2,m2wp2,BS_K_eM,BS_hybrd_temp
 
  ele_density = nel/DL_vol/(BO2ANG**3)  ! density of electron, unit: A^{-3}
  q_ThmsFrm2 = 4.0*(3.0*ele_density/pi)**(1.0/3.0)/BO2ANG  !Thomas-Fermi vector: q_tf^2 = 
@@ -83,11 +84,6 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
      if (     exp_user) call warning("Using screening with less G than Weh interaction")
      if (.not.exp_user) call   error("Using screening with less G than Weh interaction")
    endif
-   !
-   call io_control(ACTION=OP_RD_CL,COM=REP,SEC=(/1,2/),MODE=VERIFY,ID=XID)
-   io_X_err=io_X(X,Xw,XID) 
-   !
-   if(io_X_err<0) return
    !
    ! Jiuyu setting SXX and hybrid
    if(BS_K_is_SXX) then
@@ -120,13 +116,14 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
 
    if(BS_K_is_HYB) then
 !     allocate(inv_epsilon(1,1))
-     if(BS_hybrd_frac.gt.1E-4) then
+     allocate(BS_hybrd_frac(q%nibz))
+     if(BS_hybrd_head.gt.1E-4) then
       BS_eM_is_manual = .true.
 !      inv_epsilon(1,1) = BS_hybrd_frac
-      BS_K_eM = 1._SP/BS_hybrd_frac
+      BS_K_eM = 1._SP/BS_hybrd_head
       BS_K_eMread = BS_K_eM
       call msg('r','We use manual epsilon: ', BS_K_eM)
-     elseif(BS_hybrd_frac.lt.-0.1) then
+     elseif(BS_hybrd_head.lt.-0.1) then
       BS_K_eMread = 0.0
       BS_K_eM = 0.0
       call msg('r','We use RPA epsilon: ', BS_K_eM) 
@@ -137,9 +134,11 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  !   if(BS_n_g_W)
       call msg('r','We are doing SXX + (1-a)*ALDA ',BS_hybrd_type)
     case(2)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c ',BS_hybrd_type)
+      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, but still developing ',BS_hybrd_type)
     case(3)
-      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together ',BS_hybrd_type)
+      call msg('r','We are doing Finite-Q DDH in R-space ',BS_hybrd_type)
+    case(4)
+      call msg('r','We are doing SXX + (1-a)*ALDA_x + ALDA_c, together just for comparative test with type2',BS_hybrd_type)
 !    call msg('r','We are doing SXX, empirical epsilon ',BS_SXX_type)
     end select
 
@@ -214,7 +213,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
    !
    if (.not.W_is_unscreened) then
      !
-     if(.not.BS_eM_is_manual) then
+    if(.not.BS_eM_is_manual) then
      !
      IO_ACT=manage_action(RD_CL_IF_END,iq_W,1,q%nibz)
      call io_control(ACTION=IO_ACT,COM=NONE,SEC=(/2*iq_W,2*iq_W+1/),ID=XID)
@@ -227,7 +226,8 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
      !forall(i_g2=1:BS_n_g_W) X_mat(i_g2,i_g2,1)=X_mat(i_g2,i_g2,1)+1._SP
      if(iq_W.eq.1) then
       BS_K_eM = 1._SP/(real(X_mat(1,1,1))+1._SP)
-      if(BS_K_is_HYB)  BS_hybrd_frac = 1._SP/BS_K_eM
+      call msg('r','Now RPA epsilon: ', BS_K_eM)
+      if(BS_K_is_HYB)  BS_hybrd_head = 1._SP/BS_K_eM
      endif
     endif
      !
@@ -257,7 +257,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
      end if
      !
      if (BS_W_is_diagonal) then
-      if(BS_K_is_SXX.or.BS_K_is_HYB) then
+      if(BS_K_is_SXX) then
        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=1._SP/BS_K_eM*isc%gamp(i_g2,1)
       elseif(BS_K_is_MDL) then
         !$cuf kernel do(1) <<<*,*>>>
@@ -272,6 +272,16 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
           BS_W(i_g2,1,iq_W)=1._SP/model_epsilon(i_g2,1)*isc%gamp(i_g2,1)
 #endif
         enddo
+      elseif(BS_K_is_HYB) then
+        if(BS_hybrd_type==3) then ! finite-q in G-space
+          BS_hybrd_temp = 1._SP+1._SP/(1._SP/(BS_K_eM-1._SP)+ &
+&   1.563*(real(bare_qpg(iq_W,1))/BO2ANG)**2/q_ThmsFrm2   +   &
+&   (real(bare_qpg(iq_W,1))/BO2ANG)**4*1.054571726**2*1.0E-1/4._SP/m2wp2    )
+          BS_hybrd_frac(iq_W) = 1._SP/BS_hybrd_temp
+        else ! global range
+          BS_hybrd_frac(iq_W) = 1._SP/BS_K_eM
+        endif
+        forall(i_g2=1:BS_n_g_W) BS_W(i_g2,1,iq_W)=BS_hybrd_frac(iq_W)*isc%gamp(i_g2,1)
       endif
      else if (.not.BS_W_is_diagonal) then
        call warning("off-diagonal W is not supported currently!!")
@@ -345,5 +355,7 @@ subroutine K_screened_interaction_hyb(X,Xw,q,io_X_err)
  endif
  !
  if (.not.W_is_unscreened) call X_ALLOC_elemental('X')
+ !
+ if (BS_K_is_MDL) deallocate(model_epsilon)
  !
 end subroutine
